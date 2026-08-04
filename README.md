@@ -42,7 +42,8 @@ Sistema web para administrar stock, productos, proveedores y movimientos de inve
 stock/
 ├── prisma/
 │   ├── schema.prisma          # Modelos: User, Session, Category, Supplier, Product, StockMovement
-│   └── seed.ts                # Datos iniciales (usuarios, categorías, proveedor, productos)
+│   ├── catalog.mjs            # Catálogo real: 455 productos (SKU + nombre) agrupados por letra
+│   └── seed.mjs               # Seed idempotente: usuarios + catálogo (corre en cada arranque)
 ├── src/
 │   ├── actions/               # Server Actions (auth, productos, movimientos, usuarios, …)
 │   ├── app/
@@ -117,7 +118,7 @@ npm start
 
 > **Importante:** en el primer deploy a Dokploy hay que cambiar estas contraseñas.
 
-El seed también crea 5 categorías, el proveedor **Distribuidora Central** y 5 productos con stock inicial (incluye un producto sin stock y uno con vencimiento próximo, útiles para ver las alertas).
+El seed también crea las 7 categorías del catálogo (**Librería, Limpieza, Eléctricos, Pinturería, Sanitarios, Informática, Electrodomésticos**) y los **455 productos** del catálogo real (todo con stock y precio en 0, para cargar luego con movimientos de ingreso).
 
 ## Roles y permisos
 
@@ -201,15 +202,12 @@ Dokploy monta `/data` de forma persistente → el archivo `stock.db` sobrevive e
 
 ### 4. Primer arranque
 
-El `docker-entrypoint.sh` ejecuta `prisma db push` automáticamente en cada inicio, así que las tablas se crean solas.
+El `docker-entrypoint.sh` ejecuta automáticamente en cada inicio:
 
-Para cargar los datos iniciales (usuarios, categorías, productos de ejemplo), en el **primer deploy** ejecutar una sola vez desde la **terminal** de Dokploy:
+1. `prisma db push` → crea/actualiza las tablas.
+2. `node prisma/seed.mjs` → crea los usuarios y carga el catálogo (es idempotente: no duplica productos).
 
-```bash
-npx tsx prisma/seed.ts
-```
-
-> Después de esto, ya se puede ingresar con `admin@stock.local` / `Admin123!`. **Cambiar la contraseña del admin apenas se ingrese.**
+No hace falta ejecutar nada a mano. Al terminar el arranque ya se puede ingresar con `admin@stock.local` / `Admin123!`. **Cambiar la contraseña del admin apenas se ingrese.**
 
 ### 5. Dominio y HTTPS
 
@@ -240,7 +238,7 @@ con certificado Let's Encrypt automático. Para usar un dominio propio:
 | `Error: Failed to load chunk` | Build previo obsoleto. Hacer **Clean build** (limpiar caché de Docker) y redeploy. |
 | `unable to open database file` | Falta el volumen en `/data` o `DATABASE_URL` apunta a una ruta sin montar. Verificar volumen. |
 | `Error: listen EADDRINUSE :::3000` | Puerto 3000 ocupado en el host. En Dokploy no ocurre (aislamiento por contenedor). |
-| Login no funciona / 401 | Revisar que `DATABASE_URL` coincida con la del volumen y que el seed se haya ejecutado. |
+| Login no funciona / 401 | Revisar que `DATABASE_URL` coincida con la del volumen y que el seed del entrypoint se haya ejecutado (ver logs del arranque). |
 | Certificado SSL no emitido | Verificar registro DNS A y que el server tenga el puerto 443 abierto; reiniciar traefik en el host (`docker restart dokploy-traefik`) para limpiar autorizaciones fallidas. |
 
 ## Migrar a PostgreSQL (opcional)
