@@ -9,5 +9,8 @@ fi
 echo "→ Aplicando esquema de base de datos (prisma db push)"
 npx prisma db push --skip-generate
 
+echo "→ Ejecutando seed (idempotente, crea usuarios de prueba)"
+node prisma/seed.mjs
+
 echo "→ Iniciando aplicación"
 exec "$@"
