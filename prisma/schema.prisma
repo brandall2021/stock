@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  OPERADOR
+  CONSULTA
+}
+
+enum MovementType {
+  INGRESO
+  SALIDA
+  AJUSTE
+}
+
+model User {
+  id           String          @id @default(cuid())
+  name         String
+  email        String          @unique
+  passwordHash String
+  role         Role            @default(OPERADOR)
+  active       Boolean         @default(true)
+  createdAt    DateTime        @default(now())
+  sessions     Session[]
+  movements    StockMovement[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([token])
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  products    Product[]
+}
+
+model Supplier {
+  id        String            @id @default(cuid())
+  name      String            @unique
+  taxId     String?
+  phone     String?
+  email     String?
+  address   String?
+  active    Boolean           @default(true)
+  createdAt DateTime          @default(now())
+  products  SupplierProduct[]
+  movements StockMovement[]
+}
+
+model Product {
+  id            String            @id @default(cuid())
+  sku           String            @unique
+  name          String
+  description   String?
+  categoryId    String?
+  category      Category?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  purchasePrice Float             @default(0)
+  salePrice     Float             @default(0)
+  stockMin      Int               @default(0)
+  stock         Int               @default(0)
+  location      String?
+  expiryDate    DateTime?
+  active        Boolean           @default(true)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  suppliers     SupplierProduct[]
+  movements     StockMovement[]
+
+  @@index([categoryId])
+}
+
+model SupplierProduct {
+  productId  String
+  supplierId String
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  supplier   Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@id([productId, supplierId])
+}
+
+model StockMovement {
+  id            String       @id @default(cuid())
+  productId     String
+  product       Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type          MovementType
+  quantity      Int
+  unitCost      Float        @default(0)
+  supplierId    String?
+  supplier      Supplier?    @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  invoiceNumber String?
+  reason        String?
+  previousStock Int
+  newStock      Int
+  userId        String
+  user          User         @relation(fields: [userId], references: [id], onDelete: Restrict)
+  createdAt     DateTime     @default(now())
+
+  @@index([productId])
+  @@index([type])
+  @@index([createdAt])
+}
