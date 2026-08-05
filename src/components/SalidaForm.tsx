@@ -28,12 +28,16 @@ export function SalidaForm({
         <SearchSelect
           name="productId"
           required
-          placeholder="Buscar producto…"
+          placeholder="Buscar por nombre, SKU o código de barras…"
           options={products.map((p) => ({
             value: p.id,
             label: `${p.name} (${p.sku}) — stock: ${formatNumber(p.stock)}`,
+            keywords: `${p.sku} ${p.barcode ?? ""} ${p.name}`,
           }))}
         />
+        <p className="mt-1 text-xs text-zinc-500">
+          Escriba el nombre, SKU o código de barras, o escanee el código del producto.
+        </p>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>

@@ -3,7 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 
-export type SearchSelectOption = { value: string; label: string };
+export type SearchSelectOption = {
+  value: string;
+  label: string;
+  keywords?: string;
+};
 
 function normalize(value: string): string {
   return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -39,7 +43,9 @@ export function SearchSelect({
   const list = useMemo(() => {
     const q = normalize(query);
     const matches = q
-      ? options.filter((o) => normalize(o.label).includes(q))
+      ? options.filter((o) =>
+          normalize(`${o.label} ${o.keywords ?? ""}`).includes(q)
+        )
       : options;
     return emptyLabel && !q
       ? [{ value: "", label: emptyLabel }, ...matches]

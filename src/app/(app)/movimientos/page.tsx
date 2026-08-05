@@ -62,6 +62,7 @@ export default async function MovimientosPage({
               options={products.map((p) => ({
                 value: p.id,
                 label: `${p.name} (${p.sku})`,
+                keywords: `${p.sku} ${p.barcode ?? ""} ${p.name}`,
               }))}
             />
           </div>

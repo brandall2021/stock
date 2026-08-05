@@ -30,10 +30,11 @@ export function IngresoForm({
         <SearchSelect
           name="productId"
           required
-          placeholder="Buscar producto…"
+          placeholder="Buscar por nombre, SKU o código de barras…"
           options={products.map((p) => ({
             value: p.id,
             label: `${p.name} (${p.sku}) — stock: ${formatNumber(p.stock)}`,
+            keywords: `${p.sku} ${p.barcode ?? ""} ${p.name}`,
           }))}
         />
       </div>
