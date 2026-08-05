@@ -8,7 +8,7 @@ export function AreaForm({
   initial,
   onCancel,
 }: {
-  initial?: { id: string; code: string; name: string };
+  initial?: { id: string; code: string; name: string; email?: string | null };
   onCancel?: () => void;
 }) {
   const action = initial ? updateArea : createArea;
@@ -38,6 +38,15 @@ export function AreaForm({
       <div>
         <Label>Nombre</Label>
         <Input name="name" defaultValue={initial?.name} required />
+      </div>
+      <div>
+        <Label>Email (para avisos de salida de stock)</Label>
+        <Input
+          name="email"
+          type="email"
+          defaultValue={initial?.email ?? ""}
+          placeholder="dependencia@dominio.edu.ar"
+        />
       </div>
       <div className="flex items-center justify-end gap-2">
         {onCancel && (

@@ -54,6 +54,7 @@ model Area {
   id        String         @id @default(cuid())
   code      String         @unique
   name      String
+  email     String?
   createdAt DateTime       @default(now())
   movements StockMovement[]
 }

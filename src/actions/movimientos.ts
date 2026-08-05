@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { sendMail } from "@/lib/mail";
 import { MovementType } from "@prisma/client";
 
 function toInt(value: FormDataEntryValue | null): number {
@@ -67,8 +68,14 @@ export async function registerSalida(formData: FormData) {
   const productId = String(formData.get("productId") ?? "");
   const quantity = toInt(formData.get("quantity"));
   const areaId = str(formData.get("areaId"));
+  const reason = str(formData.get("reason")) ?? "Asignación a cátedra";
 
   if (!productId || quantity <= 0) throw new Error("Datos inválidos");
+
+  let productName = "";
+  let productSku = "";
+  let previousStock = 0;
+  let newStock = 0;
 
   await db.$transaction(async (tx) => {
     const product = await tx.product.findUniqueOrThrow({
@@ -79,8 +86,10 @@ export async function registerSalida(formData: FormData) {
         `Stock insuficiente: disponible ${product.stock} y se intenta descontar ${quantity}`
       );
 
-    const previousStock = product.stock;
-    const newStock = previousStock - quantity;
+    previousStock = product.stock;
+    newStock = previousStock - quantity;
+    productName = product.name;
+    productSku = product.sku;
 
     await tx.product.update({
       where: { id: productId },
@@ -91,7 +100,7 @@ export async function registerSalida(formData: FormData) {
         productId,
         type: MovementType.SALIDA,
         quantity,
-        reason: str(formData.get("reason")) ?? "Asignación a cátedra",
+        reason,
         areaId: areaId ?? undefined,
         previousStock,
         newStock,
@@ -99,6 +108,28 @@ export async function registerSalida(formData: FormData) {
       },
     });
   });
+
+  if (areaId) {
+    const area = await db.area.findUnique({
+      where: { id: areaId },
+      select: { code: true, name: true, email: true },
+    });
+    if (area?.email) {
+      await sendMail({
+        to: area.email,
+        subject: `Salida de stock: ${productSku} · ${area.code}`,
+        text:
+          `Se registró una salida de stock:\n\n` +
+          `Producto: ${productName} (${productSku})\n` +
+          `Cantidad: ${quantity}\n` +
+          `Área destino: ${area.name} (${area.code})\n` +
+          `Motivo: ${reason}\n` +
+          `Stock previo: ${previousStock} → nuevo: ${newStock}\n` +
+          `Registrado por: ${user.name ?? user.email}\n` +
+          `Fecha: ${new Date().toLocaleString("es-AR")}`,
+      });
+    }
+  }
 
   revalidatePath("/movimientos");
   revalidatePath("/salidas");

@@ -91,11 +91,14 @@ async function main() {
 
   const lines = readFileSync(CSV_PATH, "utf8").split(/\r?\n/);
   const col = detectColumns(lines[0]?.split("\t") ?? []);
-  const requeridos = ["fecha", "anio", "mes", "producto", "entradas", "salidas", "neto", "depto", "retira", "obs"];
+  const requeridos = ["fecha", "anio", "mes", "producto", "entradas", "salidas", "neto", "depto", "retira"];
   const faltantes = requeridos.filter((k) => col[k] < 0);
   if (faltantes.length) {
     console.error(`Encabezado inesperado: faltan columnas ${faltantes.join(", ")}. Revisar prisma/movimientos.tsv.`);
     process.exit(1);
+  }
+  if (col.obs < 0) {
+    console.log("Columna OBSERVACIONES no presente en el archivo; se omite en el motivo.");
   }
 
   const rows = [];

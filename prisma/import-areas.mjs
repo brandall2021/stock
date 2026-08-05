@@ -21,11 +21,11 @@ async function main() {
   const lines = readFileSync(CSV_PATH, "utf8").split(/\r?\n/);
   const areas = [];
   for (const line of lines) {
-    const [cod, nombre] = line.split("\t");
+    const [cod, nombre, email] = line.split("\t");
     const code = clean(cod);
     const name = clean(nombre);
     if (!code || !name || !/^[A-Z]{1,2}\d{1,2}$/.test(code)) continue;
-    areas.push({ code, name });
+    areas.push({ code, name, email: clean(email) });
   }
 
   const duplicados = areas.filter(
@@ -41,12 +41,15 @@ async function main() {
   for (const a of unicos) {
     const existing = await prisma.area.findUnique({ where: { code: a.code } });
     if (existing) {
-      if (existing.name !== a.name) {
-        await prisma.area.update({ where: { id: existing.id }, data: { name: a.name } });
+      const data = {};
+      if (existing.name !== a.name) data.name = a.name;
+      if (a.email && existing.email !== a.email) data.email = a.email;
+      if (Object.keys(data).length) {
+        await prisma.area.update({ where: { id: existing.id }, data });
       }
       actualizados++;
     } else {
-      await prisma.area.create({ data: { code: a.code, name: a.name } });
+      await prisma.area.create({ data: { code: a.code, name: a.name, email: a.email } });
       creados++;
     }
   }

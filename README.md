@@ -316,6 +316,21 @@ npm run db:areas
 ```
 
 - Es **idempotente**: hace upsert por código, no duplica ni borra nada.
-- Las áreas quedan disponibles en `/areas` (CRUD solo administrador) y como destino en los formularios de **Ingreso** y **Salida** (selector "Área / destino").
+- El archivo `prisma/areas.tsv` puede tener una tercera columna opcional `EMAIL` (formato `COD\tÁREA\tEMAIL`); si está presente, se guarda en el área para los avisos de salida.
+- Las áreas quedan disponibles en `/areas` (CRUD solo administrador, con campo **Email** para avisos) y como destino en los formularios de **Ingreso** y **Salida** (selector "Área / destino").
 - Cada movimiento guarda su `areaId`; la página **Movimientos** permite filtrar por área y muestra la columna correspondiente.
 - El importador de movimientos (`db:movimientos`) mapea la columna `COD.2` del TSV al área usando este catálogo; si no se corrió `db:areas`, avisa por consola y deja esos movimientos sin área.
+
+## Avisos por email en salidas
+
+Al registrar una **salida**, si el área destino tiene un **email** cargado, se envía una notificación automática (producto, cantidad, área, motivo y stock). Requiere configurar SMTP en el entorno:
+
+| Variable | Descripción |
+| --- | --- |
+| `MAIL_ENABLED` | `true` para activar el envío |
+| `SMTP_HOST` | servidor SMTP (ej. `smtp.gmail.com`) |
+| `SMTP_PORT` | 587 (STARTTLS) o 465 (SSL), default 587 |
+| `SMTP_USER` / `SMTP_PASS` | credenciales del remitente |
+| `SMTP_FROM` | remitente visible (opcional) |
+
+Si `MAIL_ENABLED` no es `true` o falta `SMTP_HOST`, el envío se omite y solo se registra en el log; el registro de la salida nunca se bloquea por un fallo de mail.

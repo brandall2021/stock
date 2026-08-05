@@ -37,7 +37,12 @@ export default async function AreasPage({
               key={editing?.id ?? "new"}
               initial={
                 editing
-                  ? { id: editing.id, code: editing.code, name: editing.name }
+                  ? {
+                      id: editing.id,
+                      code: editing.code,
+                      name: editing.name,
+                      email: editing.email,
+                    }
                   : undefined
               }
             />
@@ -51,6 +56,7 @@ export default async function AreasPage({
                 <tr className="border-b border-zinc-200 bg-zinc-50">
                   <Th>Código</Th>
                   <Th>Nombre</Th>
+                  <Th>Email</Th>
                   <Th className="text-right">Movimientos</Th>
                   <Th className="text-right">Acciones</Th>
                 </tr>
@@ -62,6 +68,18 @@ export default async function AreasPage({
                       {a.code}
                     </Td>
                     <Td className="font-medium text-zinc-900">{a.name}</Td>
+                    <Td className="text-zinc-600">
+                      {a.email ? (
+                        <a
+                          href={`mailto:${a.email}`}
+                          className="text-indigo-600 hover:underline"
+                        >
+                          {a.email}
+                        </a>
+                      ) : (
+                        <span className="text-zinc-400">—</span>
+                      )}
+                    </Td>
                     <Td className="text-right">{formatNumber(a._count.movements)}</Td>
                     <Td>
                       <div className="flex items-center justify-end gap-3">

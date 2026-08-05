@@ -9,13 +9,14 @@ export async function createArea(formData: FormData) {
   await requireRole("ADMIN");
   const code = String(formData.get("code") ?? "").trim().toUpperCase();
   const name = String(formData.get("name") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
 
   if (!code || !name) throw new Error("El código y el nombre son obligatorios");
 
   const existing = await db.area.findUnique({ where: { code } });
   if (existing) throw new Error("Ya existe un área con ese código");
 
-  await db.area.create({ data: { code, name } });
+  await db.area.create({ data: { code, name, email: email || null } });
   revalidatePath("/areas");
   redirect("/areas");
 }
@@ -25,6 +26,7 @@ export async function updateArea(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const code = String(formData.get("code") ?? "").trim().toUpperCase();
   const name = String(formData.get("name") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
 
   if (!id || !code || !name) throw new Error("Datos incompletos");
 
@@ -33,7 +35,7 @@ export async function updateArea(formData: FormData) {
   });
   if (dup) throw new Error("Ya existe un área con ese código");
 
-  await db.area.update({ where: { id }, data: { code, name } });
+  await db.area.update({ where: { id }, data: { code, name, email: email || null } });
   revalidatePath("/areas");
   redirect("/areas");
 }
