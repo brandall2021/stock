@@ -3,7 +3,8 @@
 import { registerIngreso } from "@/actions/movimientos";
 import { useFormAction } from "@/lib/useFormAction";
 import type { Area, Product, Supplier } from "@prisma/client";
-import { Button, Input, Label, Select } from "@/components/ui";
+import { Button, Input, Label } from "@/components/ui";
+import { SearchSelect } from "@/components/SearchSelect";
 import { formatNumber } from "@/lib/format";
 
 export function IngresoForm({
@@ -26,14 +27,15 @@ export function IngresoForm({
       )}
       <div>
         <Label>Producto</Label>
-        <Select name="productId" required>
-          <option value="">Seleccionar producto…</option>
-          {products.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name} ({p.sku}) — stock: {formatNumber(p.stock)}
-            </option>
-          ))}
-        </Select>
+        <SearchSelect
+          name="productId"
+          required
+          placeholder="Buscar producto…"
+          options={products.map((p) => ({
+            value: p.id,
+            label: `${p.name} (${p.sku}) — stock: ${formatNumber(p.stock)}`,
+          }))}
+        />
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
@@ -48,14 +50,12 @@ export function IngresoForm({
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Label>Proveedor</Label>
-          <Select name="supplierId" defaultValue="">
-            <option value="">Sin proveedor</option>
-            {suppliers.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </Select>
+          <SearchSelect
+            name="supplierId"
+            emptyLabel="Sin proveedor"
+            placeholder="Buscar proveedor…"
+            options={suppliers.map((s) => ({ value: s.id, label: s.name }))}
+          />
         </div>
         <div>
           <Label>N° factura / remito</Label>
@@ -68,14 +68,15 @@ export function IngresoForm({
       </div>
       <div>
         <Label>Área / destino</Label>
-        <Select name="areaId" defaultValue="">
-          <option value="">Sin área</option>
-          {areas.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.code} · {a.name}
-            </option>
-          ))}
-        </Select>
+        <SearchSelect
+          name="areaId"
+          emptyLabel="Sin área"
+          placeholder="Buscar área…"
+          options={areas.map((a) => ({
+            value: a.id,
+            label: `${a.code} · ${a.name}`,
+          }))}
+        />
       </div>
       <div className="flex justify-end">
         <Button type="submit" disabled={pending}>

@@ -4,6 +4,7 @@ import { registerSalida } from "@/actions/movimientos";
 import { useFormAction } from "@/lib/useFormAction";
 import type { Area, Product } from "@prisma/client";
 import { Button, Input, Label, Select } from "@/components/ui";
+import { SearchSelect } from "@/components/SearchSelect";
 import { formatNumber, SALIDA_REASONS } from "@/lib/format";
 
 export function SalidaForm({
@@ -24,14 +25,15 @@ export function SalidaForm({
       )}
       <div>
         <Label>Producto</Label>
-        <Select name="productId" required>
-          <option value="">Seleccionar producto…</option>
-          {products.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name} ({p.sku}) — stock: {formatNumber(p.stock)}
-            </option>
-          ))}
-        </Select>
+        <SearchSelect
+          name="productId"
+          required
+          placeholder="Buscar producto…"
+          options={products.map((p) => ({
+            value: p.id,
+            label: `${p.name} (${p.sku}) — stock: ${formatNumber(p.stock)}`,
+          }))}
+        />
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
@@ -49,14 +51,15 @@ export function SalidaForm({
       </div>
       <div>
         <Label>Área / destino</Label>
-        <Select name="areaId" defaultValue="">
-          <option value="">Sin área</option>
-          {areas.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.code} · {a.name}
-            </option>
-          ))}
-        </Select>
+        <SearchSelect
+          name="areaId"
+          emptyLabel="Sin área"
+          placeholder="Buscar área…"
+          options={areas.map((a) => ({
+            value: a.id,
+            label: `${a.code} · ${a.name}`,
+          }))}
+        />
       </div>
       <div>
         <Label>Retira / Entrega</Label>

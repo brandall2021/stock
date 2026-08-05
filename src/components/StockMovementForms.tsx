@@ -4,6 +4,7 @@ import { useState } from "react";
 import { registerIngreso, registerSalida, registerAjuste } from "@/actions/movimientos";
 import type { Area, Supplier } from "@prisma/client";
 import { Button, Input, Label, Select } from "@/components/ui";
+import { SearchSelect } from "@/components/SearchSelect";
 import { useFormAction } from "@/lib/useFormAction";
 import { SALIDA_REASONS } from "@/lib/format";
 
@@ -73,14 +74,12 @@ export function StockMovementForms({
             </div>
             <div>
               <Label>Proveedor</Label>
-              <Select name="supplierId" defaultValue="">
-                <option value="">Sin proveedor</option>
-                {suppliers.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </Select>
+              <SearchSelect
+                name="supplierId"
+                emptyLabel="Sin proveedor"
+                placeholder="Buscar proveedor…"
+                options={suppliers.map((s) => ({ value: s.id, label: s.name }))}
+              />
             </div>
             <div>
               <Label>N° factura/remito</Label>
@@ -93,14 +92,15 @@ export function StockMovementForms({
           </div>
           <div>
             <Label>Área / destino</Label>
-            <Select name="areaId" defaultValue="">
-              <option value="">Sin área</option>
-              {areas.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.code} · {a.name}
-                </option>
-              ))}
-            </Select>
+            <SearchSelect
+              name="areaId"
+              emptyLabel="Sin área"
+              placeholder="Buscar área…"
+              options={areas.map((a) => ({
+                value: a.id,
+                label: `${a.code} · ${a.name}`,
+              }))}
+            />
           </div>
           <div className="flex items-center justify-between">
             <p className="text-xs text-zinc-500">
@@ -133,14 +133,15 @@ export function StockMovementForms({
           </div>
           <div>
             <Label>Área / destino</Label>
-            <Select name="areaId" defaultValue="">
-              <option value="">Sin área</option>
-              {areas.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.code} · {a.name}
-                </option>
-              ))}
-            </Select>
+            <SearchSelect
+              name="areaId"
+              emptyLabel="Sin área"
+              placeholder="Buscar área…"
+              options={areas.map((a) => ({
+                value: a.id,
+                label: `${a.code} · ${a.name}`,
+              }))}
+            />
           </div>
           <div>
             <Label>Retira / Entrega</Label>

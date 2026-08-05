@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getMovements } from "@/lib/queries";
 import { Card, EmptyState, PageHeader, Select, Td, Th } from "@/components/ui";
+import { SearchSelect } from "@/components/SearchSelect";
 import { MovementBadge } from "@/components/MovementBadge";
 import { formatDateTime, formatNumber } from "@/lib/format";
 import { MovementType } from "@prisma/client";
@@ -53,24 +54,28 @@ export default async function MovimientosPage({
             </Select>
           </div>
           <div>
-            <Select name="producto" defaultValue={params.producto ?? ""}>
-              <option value="">Todos los productos</option>
-              {products.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </Select>
+            <SearchSelect
+              name="producto"
+              emptyLabel="Todos los productos"
+              placeholder="Buscar producto…"
+              defaultValue={params.producto ?? ""}
+              options={products.map((p) => ({
+                value: p.id,
+                label: `${p.name} (${p.sku})`,
+              }))}
+            />
           </div>
           <div>
-            <Select name="area" defaultValue={params.area ?? ""}>
-              <option value="">Todas las áreas</option>
-              {areas.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.code} · {a.name}
-                </option>
-              ))}
-            </Select>
+            <SearchSelect
+              name="area"
+              emptyLabel="Todas las áreas"
+              placeholder="Buscar área…"
+              defaultValue={params.area ?? ""}
+              options={areas.map((a) => ({
+                value: a.id,
+                label: `${a.code} · ${a.name}`,
+              }))}
+            />
           </div>
           <div>
             <input
