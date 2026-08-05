@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { requireAuth } from "@/lib/auth";
-import { db } from "@/lib/db";
 import { Card, PageHeader, Td, Th, EmptyState, Badge } from "@/components/ui";
+import { formatCurrency, formatNumber } from "@/lib/format";
 import {
-  formatCurrency,
-  formatNumber,
-} from "@/lib/format";
-import { MovementType } from "@prisma/client";
+  getLowStockRows,
+  getMovementPeriodRows,
+  getStockRows,
+  getSupplierRows,
+  getTopMovedRows,
+  getValorizationRows,
+} from "@/lib/reportes";
 import { cn } from "@/lib/cn";
 
 const TABS = [
@@ -17,6 +20,17 @@ const TABS = [
   { key: "valorizacion", label: "Valorización" },
   { key: "movidos", label: "Más movidos" },
 ];
+
+function DownloadButton({ href }: { href: string }) {
+  return (
+    <a
+      href={href}
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+    >
+      <span aria-hidden>⬇</span> Descargar CSV
+    </a>
+  );
+}
 
 export default async function ReportesPage({
   searchParams,
@@ -62,22 +76,19 @@ export default async function ReportesPage({
 }
 
 async function StockActual() {
-  const products = await db.product.findMany({
-    where: { active: true },
-    include: { category: true },
-    orderBy: { name: "asc" },
-  });
-  const totalValue = products.reduce((a, p) => a + p.stock * p.purchasePrice, 0);
-  const totalUnits = products.reduce((a, p) => a + p.stock, 0);
+  const rows = await getStockRows();
+  const totalValue = rows.reduce((a, r) => a + r.stock * r.purchasePrice, 0);
+  const totalUnits = rows.reduce((a, r) => a + r.stock, 0);
 
   return (
     <Card>
-      <div className="border-b border-zinc-200 px-6 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-6 py-4">
         <p className="text-sm text-zinc-500">
-          <b className="text-zinc-900">{products.length}</b> productos ·{" "}
+          <b className="text-zinc-900">{rows.length}</b> productos ·{" "}
           <b className="text-zinc-900">{formatNumber(totalUnits)}</b> unidades · valor{" "}
           <b className="text-zinc-900">{formatCurrency(totalValue)}</b>
         </p>
+        <DownloadButton href="/api/reportes?tab=stock" />
       </div>
       <div className="overflow-x-auto">
         <table className="w-full">
@@ -93,7 +104,7 @@ async function StockActual() {
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
-            {products.map((p) => (
+            {rows.map((p) => (
               <tr key={p.id}>
                 <Td>
                   <Link
@@ -103,7 +114,7 @@ async function StockActual() {
                     {p.name}
                   </Link>
                 </Td>
-                <Td>{p.category?.name ?? "—"}</Td>
+                <Td>{p.category}</Td>
                 <Td
                   className={
                     "text-right font-semibold " +
@@ -138,18 +149,15 @@ async function StockActual() {
 }
 
 async function BajoStock() {
-  const products = await db.product.findMany({
-    where: { active: true },
-    orderBy: { stock: "asc" },
-  });
-  const low = products.filter((p) => p.stock <= p.stockMin);
+  const rows = await getLowStockRows();
 
   return (
     <Card>
-      <div className="border-b border-zinc-200 px-6 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-6 py-4">
         <p className="text-sm text-zinc-500">
-          <b className="text-red-600">{low.length}</b> productos por debajo o igual al mínimo
+          <b className="text-red-600">{rows.length}</b> productos por debajo o igual al mínimo
         </p>
+        <DownloadButton href="/api/reportes?tab=bajo" />
       </div>
       <div className="overflow-x-auto">
         <table className="w-full">
@@ -162,7 +170,7 @@ async function BajoStock() {
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
-            {low.map((p) => (
+            {rows.map((p) => (
               <tr key={p.id}>
                 <Td>
                   <Link
@@ -183,7 +191,7 @@ async function BajoStock() {
             ))}
           </tbody>
         </table>
-        {low.length === 0 && <EmptyState message="Todo el stock está por encima del mínimo." />}
+        {rows.length === 0 && <EmptyState message="Todo el stock está por encima del mínimo." />}
       </div>
     </Card>
   );
@@ -196,45 +204,14 @@ async function MovimientosPorPeriodo({
   desde?: string;
   hasta?: string;
 }) {
-  const where: Record<string, unknown> = {};
-  if (desde || hasta) {
-    where.createdAt = {
-      ...(desde ? { gte: new Date(`${desde}T00:00:00`) } : {}),
-      ...(hasta ? { lte: new Date(`${hasta}T23:59:59`) } : {}),
-    };
-  }
-  const movements = await db.stockMovement.findMany({
-    where,
-    include: { product: true },
-    orderBy: { createdAt: "asc" },
-  });
-
-  const byProduct = new Map<
-    string,
-    { name: string; ingreso: number; salida: number; costo: number }
-  >();
-  for (const m of movements) {
-    const row = byProduct.get(m.productId) ?? {
-      name: m.product.name,
-      ingreso: 0,
-      salida: 0,
-      costo: 0,
-    };
-    if (m.type === MovementType.INGRESO) {
-      row.ingreso += m.quantity;
-      row.costo += m.quantity * m.unitCost;
-    } else if (m.type === MovementType.SALIDA) {
-      row.salida += m.quantity;
-    }
-    byProduct.set(m.productId, row);
-  }
-  const rows = [...byProduct.values()].sort(
-    (a, b) => b.ingreso - a.ingreso
-  );
+  const rows = await getMovementPeriodRows(desde, hasta);
+  const params = new URLSearchParams({ tab: "movimientos" });
+  if (desde) params.set("desde", desde);
+  if (hasta) params.set("hasta", hasta);
 
   return (
     <Card>
-      <div className="border-b border-zinc-200 px-6 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-6 py-4">
         <form method="GET" className="flex flex-wrap items-end gap-3">
           <input type="hidden" name="tab" value="movimientos" />
           <div>
@@ -262,6 +239,7 @@ async function MovimientosPorPeriodo({
             Aplicar
           </button>
         </form>
+        <DownloadButton href={`/api/reportes?${params.toString()}`} />
       </div>
       <div className="overflow-x-auto">
         <table className="w-full">
@@ -297,29 +275,14 @@ async function MovimientosPorPeriodo({
 }
 
 async function EntradasPorProveedor() {
-  const movements = await db.stockMovement.findMany({
-    where: { type: MovementType.INGRESO, supplierId: { not: null } },
-    include: { supplier: true },
-  });
-
-  const bySupplier = new Map<string, { name: string; cantidad: number; costo: number; ordenes: number }>();
-  for (const m of movements) {
-    if (!m.supplier) continue;
-    const row = bySupplier.get(m.supplierId!) ?? {
-      name: m.supplier.name,
-      cantidad: 0,
-      costo: 0,
-      ordenes: 0,
-    };
-    row.cantidad += m.quantity;
-    row.costo += m.quantity * m.unitCost;
-    row.ordenes += 1;
-    bySupplier.set(m.supplierId!, row);
-  }
-  const rows = [...bySupplier.values()].sort((a, b) => b.costo - a.costo);
+  const rows = await getSupplierRows();
 
   return (
     <Card>
+      <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
+        <p className="text-sm font-medium text-zinc-900">Entradas por proveedor</p>
+        <DownloadButton href="/api/reportes?tab=proveedores" />
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
@@ -334,8 +297,8 @@ async function EntradasPorProveedor() {
             {rows.map((r) => (
               <tr key={r.name}>
                 <Td className="font-medium text-zinc-900">{r.name}</Td>
-                <Td className="text-right">{formatNumber(r.ordenes)}</Td>
-                <Td className="text-right">{formatNumber(r.cantidad)}</Td>
+                <Td className="text-right">{formatNumber(r.ingresos)}</Td>
+                <Td className="text-right">{formatNumber(r.unidades)}</Td>
                 <Td className="text-right font-semibold">{formatCurrency(r.costo)}</Td>
               </tr>
             ))}
@@ -350,33 +313,17 @@ async function EntradasPorProveedor() {
 }
 
 async function Valorizacion() {
-  const products = await db.product.findMany({
-    where: { active: true },
-    include: { category: true },
-  });
-
-  const byCategory = new Map<string, { name: string; unidades: number; valor: number }>();
-  for (const p of products) {
-    const key = p.categoryId ?? "sin";
-    const row = byCategory.get(key) ?? {
-      name: p.category?.name ?? "Sin categoría",
-      unidades: 0,
-      valor: 0,
-    };
-    row.unidades += p.stock;
-    row.valor += p.stock * p.purchasePrice;
-    byCategory.set(key, row);
-  }
-  const rows = [...byCategory.values()].sort((a, b) => b.valor - a.valor);
+  const rows = await getValorizationRows();
   const total = rows.reduce((a, r) => a + r.valor, 0);
 
   return (
     <Card>
-      <div className="border-b border-zinc-200 px-6 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-6 py-4">
         <p className="text-sm text-zinc-500">
           Valorización total del inventario:{" "}
           <b className="text-zinc-900">{formatCurrency(total)}</b>
         </p>
+        <DownloadButton href="/api/reportes?tab=valorizacion" />
       </div>
       <div className="overflow-x-auto">
         <table className="w-full">
@@ -394,9 +341,7 @@ async function Valorizacion() {
                 <Td className="font-medium text-zinc-900">{r.name}</Td>
                 <Td className="text-right">{formatNumber(r.unidades)}</Td>
                 <Td className="text-right">{formatCurrency(r.valor)}</Td>
-                <Td className="text-right text-zinc-500">
-                  {total > 0 ? ((r.valor / total) * 100).toFixed(1) : "0.0"}%
-                </Td>
+                <Td className="text-right text-zinc-500">{r.pct.toFixed(1)}%</Td>
               </tr>
             ))}
           </tbody>
@@ -407,27 +352,14 @@ async function Valorizacion() {
 }
 
 async function MasMovidos() {
-  const movements = await db.stockMovement.findMany({
-    include: { product: true },
-  });
-
-  const byProduct = new Map<string, { name: string; movimientos: number; unidades: number }>();
-  for (const m of movements) {
-    const row = byProduct.get(m.productId) ?? {
-      name: m.product.name,
-      movimientos: 0,
-      unidades: 0,
-    };
-    row.movimientos += 1;
-    row.unidades += Math.abs(m.quantity);
-    byProduct.set(m.productId, row);
-  }
-  const rows = [...byProduct.values()]
-    .sort((a, b) => b.movimientos - a.movimientos)
-    .slice(0, 20);
+  const rows = await getTopMovedRows();
 
   return (
     <Card>
+      <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
+        <p className="text-sm font-medium text-zinc-900">Productos más movidos</p>
+        <DownloadButton href="/api/reportes?tab=movidos" />
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
