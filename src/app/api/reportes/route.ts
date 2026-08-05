@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import {
+  getAreaRows,
   getLowStockRows,
   getMovementPeriodRows,
   getStockRows,
@@ -8,6 +9,7 @@ import {
   getTopMovedRows,
   getValorizationRows,
   toCsv,
+  type AreaRow,
   type CsvColumn,
   type MovedRow,
   type MovementPeriodRow,
@@ -47,6 +49,19 @@ export async function GET(request: NextRequest) {
         { header: "Costo ingresado", value: (r) => r.costo },
       ];
       csv = toCsv(columns, await getMovementPeriodRows(desde, hasta));
+      break;
+    }
+    case "areas": {
+      filename = "reporte-por-area.csv";
+      const columns: CsvColumn<AreaRow>[] = [
+        { header: "Código", value: (r) => r.code },
+        { header: "Área", value: (r) => r.name },
+        { header: "Movimientos", value: (r) => r.movimientos },
+        { header: "Ingresos", value: (r) => r.ingresos },
+        { header: "Salidas", value: (r) => r.salidas },
+        { header: "Valor ingresado", value: (r) => r.valor },
+      ];
+      csv = toCsv(columns, await getAreaRows());
       break;
     }
     case "proveedores": {

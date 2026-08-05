@@ -170,6 +170,56 @@ export async function getTopMovedRows(): Promise<MovedRow[]> {
     .slice(0, 20);
 }
 
+export type AreaRow = {
+  code: string;
+  name: string;
+  ingresos: number;
+  salidas: number;
+  movimientos: number;
+  valor: number;
+};
+
+export async function getAreaRows(): Promise<AreaRow[]> {
+  const [areas, movements] = await Promise.all([
+    db.area.findMany({ orderBy: { name: "asc" } }),
+    db.stockMovement.findMany({ include: { area: true } }),
+  ]);
+
+  const byArea = new Map<
+    string,
+    { ingresos: number; salidas: number; movimientos: number; valor: number }
+  >();
+  for (const m of movements) {
+    if (!m.areaId) continue;
+    const row = byArea.get(m.areaId) ?? {
+      ingresos: 0,
+      salidas: 0,
+      movimientos: 0,
+      valor: 0,
+    };
+    row.movimientos += 1;
+    if (m.type === MovementType.INGRESO) {
+      row.ingresos += m.quantity;
+      row.valor += m.quantity * m.unitCost;
+    } else if (m.type === MovementType.SALIDA) {
+      row.salidas += m.quantity;
+    }
+    byArea.set(m.areaId, row);
+  }
+
+  return areas.map((a) => {
+    const row = byArea.get(a.id);
+    return {
+      code: a.code,
+      name: a.name,
+      ingresos: row?.ingresos ?? 0,
+      salidas: row?.salidas ?? 0,
+      movimientos: row?.movimientos ?? 0,
+      valor: row?.valor ?? 0,
+    };
+  });
+}
+
 export type CsvColumn<T> = { header: string; value: (row: T) => string | number };
 
 export function toCsv<T>(columns: CsvColumn<T>[], rows: T[]): string {

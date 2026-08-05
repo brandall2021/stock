@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/auth";
 import { Card, PageHeader, Td, Th, EmptyState, Badge } from "@/components/ui";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import {
+  getAreaRows,
   getLowStockRows,
   getMovementPeriodRows,
   getStockRows,
@@ -16,6 +17,7 @@ const TABS = [
   { key: "stock", label: "Stock actual" },
   { key: "bajo", label: "Bajo stock" },
   { key: "movimientos", label: "Movimientos por período" },
+  { key: "areas", label: "Por área" },
   { key: "proveedores", label: "Entradas por proveedor" },
   { key: "valorizacion", label: "Valorización" },
   { key: "movidos", label: "Más movidos" },
@@ -68,6 +70,7 @@ export default async function ReportesPage({
       {tab === "stock" && <StockActual />}
       {tab === "bajo" && <BajoStock />}
       {tab === "movimientos" && <MovimientosPorPeriodo desde={params.desde} hasta={params.hasta} />}
+      {tab === "areas" && <PorArea />}
       {tab === "proveedores" && <EntradasPorProveedor />}
       {tab === "valorizacion" && <Valorizacion />}
       {tab === "movidos" && <MasMovidos />}
@@ -268,6 +271,56 @@ async function MovimientosPorPeriodo({
         </table>
         {rows.length === 0 && (
           <EmptyState message="Sin movimientos en el período seleccionado." />
+        )}
+      </div>
+    </Card>
+  );
+}
+
+async function PorArea() {
+  const rows = await getAreaRows();
+  const conMovimientos = rows.filter((r) => r.movimientos > 0).length;
+
+  return (
+    <Card>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-6 py-4">
+        <p className="text-sm text-zinc-500">
+          <b className="text-zinc-900">{rows.length}</b> áreas ·{" "}
+          <b className="text-zinc-900">{conMovimientos}</b> con movimientos
+        </p>
+        <DownloadButton href="/api/reportes?tab=areas" />
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-zinc-200 bg-zinc-50">
+              <Th>Área</Th>
+              <Th className="text-right">Movimientos</Th>
+              <Th className="text-right">Ingresos</Th>
+              <Th className="text-right">Salidas</Th>
+              <Th className="text-right">Valor ingresado</Th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-100">
+            {rows.map((r) => (
+              <tr key={r.code}>
+                <Td className="font-medium text-zinc-900">
+                  <span className="text-zinc-400">{r.code}</span> · {r.name}
+                </Td>
+                <Td className="text-right">{formatNumber(r.movimientos)}</Td>
+                <Td className="text-right font-semibold text-emerald-600">
+                  +{formatNumber(r.ingresos)}
+                </Td>
+                <Td className="text-right font-semibold text-red-600">
+                  -{formatNumber(r.salidas)}
+                </Td>
+                <Td className="text-right">{formatCurrency(r.valor)}</Td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {rows.length === 0 && (
+          <EmptyState message="No hay áreas cargadas." />
         )}
       </div>
     </Card>
