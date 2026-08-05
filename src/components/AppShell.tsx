@@ -74,27 +74,17 @@ export function AppShell({
         )}
       >
         <div className="flex h-16 shrink-0 items-center gap-3 border-b border-sidebar-line px-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-accent to-blue-700 shadow-md shadow-blue-900/40">
-            <svg
-              className="h-5 w-5 text-white"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={1.8}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5m8.25 3v6.75m0 0l-3-3m3 3l3-3M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"
-              />
-            </svg>
-          </div>
-          <div className="min-w-0">
-            <p className="font-display text-[15px] font-semibold leading-tight text-white">
-              Stock
-            </p>
-            <p className="text-[11px] text-slate-500">Gestión de inventario</p>
-          </div>
+          <Link
+            href="/"
+            className="flex min-w-0 items-center gap-2.5"
+            aria-label="Stock — Sistema de inventario"
+          >
+            <img
+              src="/logo-face.png"
+              alt="Facultad de Ciencias Económicas — UNT"
+              className="h-8 w-auto max-w-[150px] object-contain sm:max-w-[190px]"
+            />
+          </Link>
           <button
             type="button"
             onClick={closeMenu}

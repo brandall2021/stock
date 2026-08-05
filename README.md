@@ -5,10 +5,11 @@ Sistema web para administrar stock, productos, proveedores y movimientos de inve
 - **Dashboard** con KPIs, gráficos de movimientos, alertas y ranking de productos.
 - **Productos** con SKU, categoría, stock mínimo, vencimientos y múltiples proveedores.
 - **Movimientos** de ingreso, salida y ajuste con trazabilidad completa (usuario, fecha, stock anterior/nuevo).
+- **Selectores con autocompletado** en productos, áreas y proveedores: búsqueda escribiendo y escaneo de código de barras.
 - **Alertas** automáticas por bajo stock, sin stock y vencimientos próximos (30 días).
-- **Reportes** de stock, valorización, movimientos por período y desempeño de proveedores.
+- **Reportes** de stock, valorización, movimientos por período y desempeño de proveedores, con **filtros**, **orden por columna** y descarga en **CSV** y **PDF**.
 - **Áreas** (materias, cátedras y dependencias) como destino del stock, vinculadas a los movimientos.
-- **Usuarios y roles** (Administrador, Operador, Consulta) con permisos diferenciados.
+- **Interfaz responsive** (sidebar con drawer en móvil) y **usuarios y roles** (Administrador, Operador, Consulta) con permisos diferenciados.
 
 ---
 
@@ -24,8 +25,9 @@ Sistema web para administrar stock, productos, proveedores y movimientos de inve
 8. [Scripts disponibles](#scripts-disponibles)
 9. [Importar inventario de librería (CSV)](#importar-inventario-de-librería-csv)
 10. [Importar movimientos históricos (TSV)](#importar-movimientos-históricos-tsv)
-11. [Áreas (catálogo COD → ÁREA)](#áreas-catálogo-cod--área)
-12. [Deploy en Dokploy](#deploy-en-dokploy)
+11. [Reportes](#reportes)
+12. [Áreas (catálogo COD → ÁREA)](#áreas-catálogo-cod--área)
+13. [Deploy en Dokploy](#deploy-en-dokploy)
 
 ---
 
@@ -57,10 +59,10 @@ stock/
 │   ├── app/
 │   │   ├── (app)/             # Páginas protegidas (dashboard, productos, reportes, …)
 │   │   ├── login/             # Pantalla de acceso
-│   │   ├── globals.css        # Theme Tailwind 4 y paleta
+│   │   ├── globals.css        # Theme Tailwind 4 y paleta (+ estilos de impresión)
 │   │   └── layout.tsx         # Layout raíz + fuentes
-│   ├── components/            # UI kit, charts, formularios
-│   └── lib/                   # auth, db, queries, format
+│   ├── components/            # UI kit, charts, SearchSelect, PrintButton, AppShell, formularios
+│   └── lib/                   # auth, db, queries, format, reportes (getters + CSV/orden)
 ├── Dockerfile                 # Build multi-stage para Dokploy
 ├── docker-entrypoint.sh       # Aplica esquema y arranca la app
 └── .dockerignore
@@ -135,7 +137,7 @@ El seed crea las **7 categorías** del catálogo (**Librería, Limpieza, Eléctr
 ```bash
 npm run db:areas        # catálogo de áreas (186)
 npm run db:inventario   # stock y precios reales (A01–A198)
-npm run db:movimientos  # historial de movimientos (requiere prisma/movimientos.tsv)
+npm run db:movimientos  # historial de movimientos (prisma/movimientos.tsv, real: 2615 filas)
 ```
 
 ## Roles y permisos
@@ -305,7 +307,15 @@ Qué hace:
 - Es **idempotente**: si ya hay movimientos `[Importado]`, aborta avisando; para reimportar tras cambiar el archivo: `node prisma/import-movimientos.mjs --reset`.
 - El `stock` anterior/nuevo se reconstruye en memoria desde el ALTA STOCK INICIAL.
 
-> El importador busca `prisma/movimientos.tsv`; si el archivo no existe, avisa sin tocar nada. El `prisma/movimientos.tsv` incluido en el repo es un **ejemplo de prueba**: reemplazarlo con el movimiento real antes de importar en producción. El entrypoint de deploy **no** corre este importador.
+> El importador busca `prisma/movimientos.tsv`; si el archivo no existe, avisa sin tocar nada. El `prisma/movimientos.tsv` incluido en el repo es el **movimiento real** (2615 filas, 2025-02-03 → 2025-12-31), ya importado en la base (2359 movimientos creados; 257 filas omitidas por código/importes vacíos). El entrypoint de deploy **no** corre este importador.
+
+## Reportes
+
+La página `/reportes` ofrece 8 reportes en pestañas: **stock actual**, **stock bajo**, **movimientos por período**, **movimientos por categoría**, **áreas**, **proveedores**, **valorización** y **top movidos**.
+
+- **Filtros**: búsqueda de texto (`q`), categoría, estado de stock (sin/bajo/ok) y período `desde`/`hasta` según el reporte. Se conservan al navegar entre pestañas y al ordenar.
+- **Orden por columna**: cada encabezado ordena asc/desc (numerico o alfabético); se refleja en el botón CSV.
+- **Descarga**: botón **CSV** (UTF-8 con BOM, separador `;`, aplica los mismos filtros y orden) y botón **PDF** (impresión optimizada: solo el contenido, encabezados repetidos por página, apto para guardar como PDF desde el navegador).
 
 ## Áreas (catálogo COD → ÁREA)
 
