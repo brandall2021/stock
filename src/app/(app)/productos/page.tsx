@@ -52,7 +52,7 @@ export default async function ProductosPage({
   const qLower = q?.toLowerCase();
   const products = allProducts.filter((p) => {
     if (qLower) {
-      const haystack = [p.name, p.sku, p.description ?? ""]
+      const haystack = [p.name, p.sku, p.barcode ?? "", p.description ?? ""]
         .join(" ")
         .toLowerCase();
       if (!haystack.includes(qLower)) return false;

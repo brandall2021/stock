@@ -18,6 +18,11 @@ import { ConfirmButton } from "@/components/ConfirmButton";
 import { deleteProduct } from "@/actions/productos";
 import { formatCurrency, formatDate, formatDateTime, formatNumber } from "@/lib/format";
 
+function expiraPronto(fecha: Date | null): boolean {
+  if (!fecha) return false;
+  return fecha < new Date(Date.now() + 30 * 86400000);
+}
+
 export default async function ProductoDetailPage({
   params,
 }: {
@@ -26,10 +31,11 @@ export default async function ProductoDetailPage({
   const user = await requireAuth();
   const { id } = await params;
 
-  const [product, categories, suppliers] = await Promise.all([
+  const [product, categories, suppliers, areas] = await Promise.all([
     getProductWithRelations(id),
     db.category.findMany({ orderBy: { name: "asc" } }),
     db.supplier.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
+    db.area.findMany({ orderBy: { name: "asc" } }),
   ]);
 
   if (!product) notFound();
@@ -70,7 +76,7 @@ export default async function ProductoDetailPage({
           {formatNumber(product.stockMin)}).
         </div>
       )}
-      {product.expiryDate && product.expiryDate < new Date(Date.now() + 30 * 86400000) && (
+      {expiraPronto(product.expiryDate) && (
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
           Vence el {formatDate(product.expiryDate)}.
         </div>
@@ -106,6 +112,10 @@ export default async function ProductoDetailPage({
             <div className="flex justify-between">
               <dt className="text-zinc-500">Precio de venta</dt>
               <dd>{formatCurrency(product.salePrice)}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-zinc-500">Código de barras</dt>
+              <dd className="tnum">{product.barcode ?? "—"}</dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-zinc-500">Categoría</dt>
@@ -159,6 +169,7 @@ export default async function ProductoDetailPage({
               productName={product.name}
               currentStock={product.stock}
               suppliers={suppliers}
+              areas={areas}
             />
           )}
           <div className="mt-4 overflow-x-auto">
@@ -171,6 +182,7 @@ export default async function ProductoDetailPage({
                   <Th className="text-right">Antes</Th>
                   <Th className="text-right">Después</Th>
                   <Th>Motivo</Th>
+                  <Th>Área</Th>
                   <Th>Usuario</Th>
                 </tr>
               </thead>
@@ -194,6 +206,7 @@ export default async function ProductoDetailPage({
                     <Td className="text-right">{formatNumber(m.previousStock)}</Td>
                     <Td className="text-right">{formatNumber(m.newStock)}</Td>
                     <Td className="text-zinc-500">{m.reason ?? "—"}</Td>
+                    <Td>{m.area?.name ?? "—"}</Td>
                     <Td>{m.user.name}</Td>
                   </tr>
                 ))}
@@ -220,6 +233,7 @@ export default async function ProductoDetailPage({
             initial={{
               id: product.id,
               sku: product.sku,
+              barcode: product.barcode,
               name: product.name,
               description: product.description,
               categoryId: product.categoryId,

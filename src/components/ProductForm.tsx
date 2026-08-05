@@ -16,6 +16,7 @@ export function ProductForm({
   initial?: {
     id: string;
     sku: string;
+    barcode?: string | null;
     name: string;
     description?: string | null;
     categoryId?: string | null;
@@ -42,7 +43,7 @@ export function ProductForm({
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div>
           <Label>SKU</Label>
           <Input
@@ -55,6 +56,14 @@ export function ProductForm({
         <div>
           <Label>Nombre</Label>
           <Input name="name" defaultValue={initial?.name} required />
+        </div>
+        <div>
+          <Label>Código de barras</Label>
+          <Input
+            name="barcode"
+            defaultValue={initial?.barcode ?? ""}
+            placeholder="7798006055058"
+          />
         </div>
       </div>
 

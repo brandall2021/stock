@@ -24,6 +24,7 @@ export async function registerIngreso(formData: FormData) {
   const user = await requireRole(["ADMIN", "OPERADOR"]);
   const productId = String(formData.get("productId") ?? "");
   const quantity = toInt(formData.get("quantity"));
+  const areaId = str(formData.get("areaId"));
 
   if (!productId || quantity <= 0) throw new Error("Datos inválidos");
 
@@ -47,6 +48,7 @@ export async function registerIngreso(formData: FormData) {
         supplierId: str(formData.get("supplierId")) ?? undefined,
         invoiceNumber: str(formData.get("invoiceNumber")),
         reason: str(formData.get("reason")),
+        areaId: areaId ?? undefined,
         previousStock,
         newStock,
         userId: user.id,
@@ -64,6 +66,7 @@ export async function registerSalida(formData: FormData) {
   const user = await requireRole(["ADMIN", "OPERADOR"]);
   const productId = String(formData.get("productId") ?? "");
   const quantity = toInt(formData.get("quantity"));
+  const areaId = str(formData.get("areaId"));
 
   if (!productId || quantity <= 0) throw new Error("Datos inválidos");
 
@@ -89,6 +92,7 @@ export async function registerSalida(formData: FormData) {
         type: MovementType.SALIDA,
         quantity,
         reason: str(formData.get("reason")) ?? "Venta",
+        areaId: areaId ?? undefined,
         previousStock,
         newStock,
         userId: user.id,

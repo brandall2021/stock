@@ -17,6 +17,7 @@ import {
   IconDashboard,
   IconExchange,
   IconLogout,
+  IconMap,
   IconReport,
   IconTag,
   IconTruck,
@@ -44,6 +45,7 @@ const ALL_NAV: { group: string; items: { href: string; label: string; roles: Rol
     group: "Gestión",
     items: [
       { href: "/categorias", label: "Categorías", roles: ["ADMIN"], icon: <IconTag className="h-[18px] w-[18px]" /> },
+      { href: "/areas", label: "Áreas", roles: ["ADMIN"], icon: <IconMap className="h-[18px] w-[18px]" /> },
       { href: "/proveedores", label: "Proveedores", roles: ["ADMIN"], icon: <IconTruck className="h-[18px] w-[18px]" /> },
       { href: "/reportes", label: "Reportes", roles: ["ADMIN", "OPERADOR", "CONSULTA"], icon: <IconReport className="h-[18px] w-[18px]" /> },
       { href: "/usuarios", label: "Usuarios", roles: ["ADMIN"], icon: <IconUser className="h-[18px] w-[18px]" /> },

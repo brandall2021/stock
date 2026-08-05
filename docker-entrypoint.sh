@@ -12,5 +12,11 @@ npx prisma db push --skip-generate
 echo "→ Ejecutando seed (idempotente, crea usuarios de prueba)"
 node prisma/seed.mjs
 
+echo "→ Importando catálogo de áreas (idempotente)"
+node prisma/import-areas.mjs
+
+echo "→ Importando inventario de librería (idempotente)"
+node prisma/import-inventario.mjs
+
 echo "→ Iniciando aplicación"
 exec "$@"

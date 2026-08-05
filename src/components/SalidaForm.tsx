@@ -2,11 +2,17 @@
 
 import { registerSalida } from "@/actions/movimientos";
 import { useFormAction } from "@/lib/useFormAction";
-import type { Product } from "@prisma/client";
+import type { Area, Product } from "@prisma/client";
 import { Button, Input, Label, Select } from "@/components/ui";
 import { formatNumber } from "@/lib/format";
 
-export function SalidaForm({ products }: { products: Product[] }) {
+export function SalidaForm({
+  products,
+  areas,
+}: {
+  products: Product[];
+  areas: Area[];
+}) {
   const [state, formAction, pending] = useFormAction(registerSalida);
 
   return (
@@ -42,6 +48,17 @@ export function SalidaForm({ products }: { products: Product[] }) {
             <option>Ajuste manual</option>
           </Select>
         </div>
+      </div>
+      <div>
+        <Label>Área / destino</Label>
+        <Select name="areaId" defaultValue="">
+          <option value="">Sin área</option>
+          {areas.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.code} · {a.name}
+            </option>
+          ))}
+        </Select>
       </div>
       <div className="flex justify-end">
         <Button type="submit" disabled={pending}>

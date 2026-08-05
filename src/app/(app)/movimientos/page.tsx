@@ -13,6 +13,7 @@ export default async function MovimientosPage({
   searchParams: Promise<{
     tipo?: string;
     producto?: string;
+    area?: string;
     desde?: string;
     hasta?: string;
     limite?: string;
@@ -21,11 +22,13 @@ export default async function MovimientosPage({
   await requireAuth();
   const params = await searchParams;
 
-  const [products, movements] = await Promise.all([
+  const [products, areas, movements] = await Promise.all([
     db.product.findMany({ orderBy: { name: "asc" } }),
+    db.area.findMany({ orderBy: { name: "asc" } }),
     getMovements({
       type: params.tipo || undefined,
       productId: params.producto || undefined,
+      areaId: params.area || undefined,
       from: params.desde || undefined,
       to: params.hasta || undefined,
       limit: params.limite ? Number.parseInt(params.limite, 10) : 100,
@@ -55,6 +58,16 @@ export default async function MovimientosPage({
               {products.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Select name="area" defaultValue={params.area ?? ""}>
+              <option value="">Todas las áreas</option>
+              {areas.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.code} · {a.name}
                 </option>
               ))}
             </Select>
@@ -105,6 +118,7 @@ export default async function MovimientosPage({
                 <Th className="text-right">Después</Th>
                 <Th>Motivo</Th>
                 <Th>Proveedor</Th>
+                <Th>Área</Th>
                 <Th>Usuario</Th>
               </tr>
             </thead>
@@ -135,6 +149,7 @@ export default async function MovimientosPage({
                   <Td className="text-right">{formatNumber(m.newStock)}</Td>
                   <Td className="text-zinc-500">{m.reason ?? "—"}</Td>
                   <Td>{m.supplier?.name ?? "—"}</Td>
+                  <Td>{m.area?.name ?? "—"}</Td>
                   <Td>{m.user.name}</Td>
                 </tr>
               ))}

@@ -8,16 +8,17 @@ import { MovementType } from "@prisma/client";
 
 export default async function SalidasPage() {
   await requireAuth();
-  const [products, salidas] = await Promise.all([
+  const [products, areas, salidas] = await Promise.all([
     db.product.findMany({
       where: { active: true },
       orderBy: { name: "asc" },
     }),
+    db.area.findMany({ orderBy: { name: "asc" } }),
     db.stockMovement.findMany({
       where: { type: MovementType.SALIDA },
       orderBy: { createdAt: "desc" },
       take: 50,
-      include: { product: true, user: true },
+      include: { product: true, user: true, area: true },
     }),
   ]);
 
@@ -34,7 +35,7 @@ export default async function SalidasPage() {
             <h2 className="mb-4 text-sm font-semibold text-zinc-900">
               Nueva salida
             </h2>
-            <SalidaForm products={products} />
+            <SalidaForm products={products} areas={areas} />
           </Card>
         </div>
 
@@ -52,6 +53,7 @@ export default async function SalidasPage() {
                   <Th>Producto</Th>
                   <Th className="text-right">Cant.</Th>
                   <Th>Motivo</Th>
+                  <Th>Área</Th>
                   <Th>Usuario</Th>
                 </tr>
               </thead>
@@ -71,6 +73,7 @@ export default async function SalidasPage() {
                       -{formatNumber(m.quantity)}
                     </Td>
                     <Td>{m.reason ?? "—"}</Td>
+                    <Td>{m.area?.name ?? "—"}</Td>
                     <Td>{m.user.name}</Td>
                   </tr>
                 ))}

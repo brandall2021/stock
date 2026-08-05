@@ -2,16 +2,18 @@
 
 import { registerIngreso } from "@/actions/movimientos";
 import { useFormAction } from "@/lib/useFormAction";
-import type { Product, Supplier } from "@prisma/client";
+import type { Area, Product, Supplier } from "@prisma/client";
 import { Button, Input, Label, Select } from "@/components/ui";
 import { formatNumber } from "@/lib/format";
 
 export function IngresoForm({
   products,
   suppliers,
+  areas,
 }: {
   products: Product[];
   suppliers: Supplier[];
+  areas: Area[];
 }) {
   const [state, formAction, pending] = useFormAction(registerIngreso);
 
@@ -63,6 +65,17 @@ export function IngresoForm({
       <div>
         <Label>Motivo (opcional)</Label>
         <Input name="reason" placeholder="Ej: reposición semanal" />
+      </div>
+      <div>
+        <Label>Área / destino</Label>
+        <Select name="areaId" defaultValue="">
+          <option value="">Sin área</option>
+          {areas.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.code} · {a.name}
+            </option>
+          ))}
+        </Select>
       </div>
       <div className="flex justify-end">
         <Button type="submit" disabled={pending}>

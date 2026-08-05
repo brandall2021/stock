@@ -193,6 +193,7 @@ export async function getSystemStatus() {
 export async function getMovements(filters?: {
   type?: string;
   productId?: string;
+  areaId?: string;
   from?: string;
   to?: string;
   limit?: number;
@@ -200,6 +201,7 @@ export async function getMovements(filters?: {
   const where: Record<string, unknown> = {};
   if (filters?.type) where.type = filters.type;
   if (filters?.productId) where.productId = filters.productId;
+  if (filters?.areaId) where.areaId = filters.areaId;
   if (filters?.from || filters?.to) {
     where.createdAt = {
       ...(filters.from ? { gte: new Date(`${filters.from}T00:00:00`) } : {}),
@@ -211,7 +213,7 @@ export async function getMovements(filters?: {
     where,
     orderBy: { createdAt: "desc" },
     take: filters?.limit,
-    include: { product: true, user: true, supplier: true },
+    include: { product: true, user: true, supplier: true, area: true },
   });
 }
 
@@ -224,7 +226,7 @@ export async function getProductWithRelations(id: string) {
       movements: {
         orderBy: { createdAt: "desc" },
         take: 50,
-        include: { user: true, supplier: true },
+        include: { user: true, supplier: true, area: true },
       },
     },
   });

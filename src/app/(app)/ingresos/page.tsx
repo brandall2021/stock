@@ -8,7 +8,7 @@ import { MovementType } from "@prisma/client";
 
 export default async function IngresosPage() {
   await requireAuth();
-  const [products, suppliers, ingresos] = await Promise.all([
+  const [products, suppliers, areas, ingresos] = await Promise.all([
     db.product.findMany({
       where: { active: true },
       orderBy: { name: "asc" },
@@ -17,11 +17,12 @@ export default async function IngresosPage() {
       where: { active: true },
       orderBy: { name: "asc" },
     }),
+    db.area.findMany({ orderBy: { name: "asc" } }),
     db.stockMovement.findMany({
       where: { type: MovementType.INGRESO },
       orderBy: { createdAt: "desc" },
       take: 50,
-      include: { product: true, supplier: true, user: true },
+      include: { product: true, supplier: true, user: true, area: true },
     }),
   ]);
 
@@ -38,7 +39,11 @@ export default async function IngresosPage() {
             <h2 className="mb-4 text-sm font-semibold text-zinc-900">
               Nuevo ingreso
             </h2>
-            <IngresoForm products={products} suppliers={suppliers} />
+            <IngresoForm
+              products={products}
+              suppliers={suppliers}
+              areas={areas}
+            />
           </Card>
         </div>
 
@@ -58,6 +63,7 @@ export default async function IngresosPage() {
                   <Th className="text-right">Costo</Th>
                   <Th>Proveedor</Th>
                   <Th>Factura</Th>
+                  <Th>Área</Th>
                   <Th>Usuario</Th>
                 </tr>
               </thead>
@@ -81,6 +87,7 @@ export default async function IngresosPage() {
                     </Td>
                     <Td>{m.supplier?.name ?? "—"}</Td>
                     <Td className="font-mono text-xs">{m.invoiceNumber ?? "—"}</Td>
+                    <Td>{m.area?.name ?? "—"}</Td>
                     <Td>{m.user.name}</Td>
                   </tr>
                 ))}

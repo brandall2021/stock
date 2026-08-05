@@ -7,6 +7,7 @@ Sistema web para administrar stock, productos, proveedores y movimientos de inve
 - **Movimientos** de ingreso, salida y ajuste con trazabilidad completa (usuario, fecha, stock anterior/nuevo).
 - **Alertas** automáticas por bajo stock, sin stock y vencimientos próximos (30 días).
 - **Reportes** de stock, valorización, movimientos por período y desempeño de proveedores.
+- **Áreas** (materias, cátedras y dependencias) como destino del stock, vinculadas a los movimientos.
 - **Usuarios y roles** (Administrador, Operador, Consulta) con permisos diferenciados.
 
 ---
@@ -21,8 +22,10 @@ Sistema web para administrar stock, productos, proveedores y movimientos de inve
 6. [Roles y permisos](#roles-y-permisos)
 7. [Variables de entorno](#variables-de-entorno)
 8. [Scripts disponibles](#scripts-disponibles)
-9. [Deploy en Dokploy](#deploy-en-dokploy)
-10. [Migrar a PostgreSQL (opcional)](#migrar-a-postgresql-opcional)
+9. [Importar inventario de librería (CSV)](#importar-inventario-de-librería-csv)
+10. [Importar movimientos históricos (TSV)](#importar-movimientos-históricos-tsv)
+11. [Áreas (catálogo COD → ÁREA)](#áreas-catálogo-cod--área)
+12. [Deploy en Dokploy](#deploy-en-dokploy)
 
 ---
 
@@ -32,7 +35,7 @@ Sistema web para administrar stock, productos, proveedores y movimientos de inve
 |---|---|
 | Framework | Next.js 16.2.9 (App Router, Turbopack) |
 | UI | React 19, Tailwind CSS 4, Recharts 3 |
-| Base de datos | SQLite con Prisma ORM 6 |
+| Base de datos | PostgreSQL con Prisma ORM 6 |
 | Autenticación | Sesiones propias con cookie `httpOnly` + bcryptjs |
 | Tipos | TypeScript estricto |
 
@@ -41,8 +44,13 @@ Sistema web para administrar stock, productos, proveedores y movimientos de inve
 ```
 stock/
 ├── prisma/
-│   ├── schema.prisma          # Modelos: User, Session, Category, Supplier, Product, StockMovement
+│   ├── schema.prisma          # Modelos: User, Session, Category, Supplier, Product, StockMovement, Area
 │   ├── catalog.mjs            # Catálogo real: 455 productos (SKU + nombre) agrupados por letra
+│   ├── areas.tsv              # Catálogo COD → ÁREA (186 áreas, dependencias O1–O48)
+│   ├── inventario.csv         # Inventario de librería (stock y precios)
+│   ├── import-areas.mjs       # Importador del catálogo de áreas (idempotente)
+│   ├── import-inventario.mjs  # Importador del inventario CSV (stock y precios)
+│   ├── import-movimientos.mjs # Importador del historial TSV (sin tocar stock)
 │   └── seed.mjs               # Seed idempotente: usuarios + catálogo (corre en cada arranque)
 ├── src/
 │   ├── actions/               # Server Actions (auth, productos, movimientos, usuarios, …)
@@ -74,12 +82,16 @@ npm install
 
 ### 2. Variables de entorno
 
-Crear el archivo `.env` en la raíz:
+Crear el archivo `.env` en la raíz apuntando al servicio PostgreSQL:
 
 ```env
-# Ruta relativa al directorio prisma/ → crea prisma/stock.db
-DATABASE_URL="file:./stock.db"
+# Hostname interno del servicio Postgres dentro de Dokploy
+DATABASE_URL="postgresql://brandall:TU_PASSWORD@basededato-6cfbai:5432/stock"
+# IP pública del servidor Postgres (para herramientas externas / local)
+DB_HOST=186.153.163.188
 ```
+
+> Para correr desde una máquina local usar la **IP pública** en `DATABASE_URL` (`postgresql://brandall:TU_PASSWORD@186.153.163.188:5432/stock`); el hostname `basededato-6cfbai` solo resuelve dentro de Dokploy.
 
 ### 3. Base de datos y datos iniciales
 
@@ -90,7 +102,7 @@ npx prisma generate
 # Crea las tablas (equivalente a migración inicial)
 npm run db:push
 
-# Carga datos de ejemplo (idempotente: puede ejecutarse varias veces)
+# Carga usuarios + catálogo (idempotente: puede ejecutarse varias veces)
 npm run db:seed
 ```
 
@@ -118,7 +130,13 @@ npm start
 
 > **Importante:** en el primer deploy a Dokploy hay que cambiar estas contraseñas.
 
-El seed también crea las 7 categorías del catálogo (**Librería, Limpieza, Eléctricos, Pinturería, Sanitarios, Informática, Electrodomésticos**) y los **455 productos** del catálogo real (todo con stock y precio en 0, para cargar luego con movimientos de ingreso).
+El seed crea las **7 categorías** del catálogo (**Librería, Limpieza, Eléctricos, Pinturería, Sanitarios, Informática, Electrodomésticos**), los **455 productos** del catálogo real (con stock y precio en 0) y los usuarios de prueba. Después se cargan los datos de la librería:
+
+```bash
+npm run db:areas        # catálogo de áreas (186)
+npm run db:inventario   # stock y precios reales (A01–A198)
+npm run db:movimientos  # historial de movimientos (requiere prisma/movimientos.tsv)
+```
 
 ## Roles y permisos
 
@@ -127,7 +145,7 @@ El seed también crea las 7 categorías del catálogo (**Librería, Limpieza, El
 | Ver inventario, movimientos y alertas | ✅ | ✅ | ✅ |
 | Registrar ingresos, salidas y ajustes | ✅ | ✅ | — |
 | Crear/editar productos | ✅ | ✅ | — |
-| Categorías y proveedores | ✅ | — | — |
+| Categorías, áreas y proveedores | ✅ | — | — |
 | Usuarios y configuración | ✅ | — | — |
 | Reportes | ✅ | ✅ | ✅ (solo lectura) |
 
@@ -135,7 +153,8 @@ El seed también crea las 7 categorías del catálogo (**Librería, Limpieza, El
 
 | Variable | Obligatoria | Descripción | Ejemplo |
 |---|---|---|---|
-| `DATABASE_URL` | ✅ | Conexión a SQLite (relativa al dir `prisma/` en local; absoluta con volumen en Dokploy) | `file:./stock.db` / `file:/data/stock.db` |
+| `DATABASE_URL` | ✅ | Conexión a PostgreSQL (hostname interno en Dokploy; IP pública desde local) | `postgresql://brandall:pass@basededato-6cfbai:5432/stock` |
+| `DB_HOST` | no | IP pública del servidor Postgres (para herramientas externas) | `186.153.163.188` |
 | `PORT` | no | Puerto HTTP (por defecto 3000) | `3000` |
 | `NODE_ENV` | no | Modo de ejecución (se fija en el contenedor) | `production` |
 
@@ -150,6 +169,9 @@ El seed también crea las 7 categorías del catálogo (**Librería, Limpieza, El
 | `npm run lint` | ESLint |
 | `npm run db:push` | Aplica el esquema Prisma a la base |
 | `npm run db:seed` | Carga datos iniciales |
+| `npm run db:inventario` | Importa `prisma/inventario.csv` (stock y precios de la librería) |
+| `npm run db:movimientos` | Importa `prisma/movimientos.tsv` (historial, sin tocar stock) |
+| `npm run db:areas` | Importa `prisma/areas.tsv` (catálogo COD → ÁREA) |
 
 ---
 
@@ -182,23 +204,20 @@ En Dokploy:
 En **Configuración → Environment** de la app en Dokploy:
 
 ```env
-DATABASE_URL=file:/data/stock.db
+DATABASE_URL=postgresql://brandall:TU_PASSWORD@basededato-6cfbai:5432/stock
 PORT=3000
 NODE_ENV=production
 ```
 
-> Usar la ruta **absoluta `/data/stock.db`** porque la base de datos vive en un volumen persistente (ver paso siguiente). En local se usa la ruta relativa `file:./stock.db`.
+> El hostname `basededato-6cfbai` es el nombre del servicio **PostgreSQL** de Dokploy y solo resuelve dentro de la red interna. `DB_HOST` con la IP pública se usa para herramientas externas, no en la app.
 
-### 3. Volumen persistente (SQLite)
+### 3. Base de datos
 
-Sin volumen, la base de datos se pierde en cada redeploy. Agregar:
+La aplicación usa un servicio **PostgreSQL** de Dokploy (no SQLite): los datos viven en el servicio, por lo que **no hace falta volumen en la app**. Solo asegurarse de que:
 
-1. Ir a **Volumes** de la aplicación.
-2. Agregar un volumen **persistente**:
-   - **Mount Path**: `/data`
-   - **Volumen**: crear uno nuevo (p. ej. `stock-data`) o usar un volumen de host.
-
-Dokploy monta `/data` de forma persistente → el archivo `stock.db` sobrevive entre deploys y reinicios.
+1. El servicio Postgres exista y esté corriendo.
+2. La base `stock` esté creada (`CREATE DATABASE "stock";`). Si no existe, el `docker-entrypoint.sh` fallará al conectar.
+3. El usuario tenga permisos sobre esa base.
 
 ### 4. Primer arranque
 
@@ -206,6 +225,8 @@ El `docker-entrypoint.sh` ejecuta automáticamente en cada inicio:
 
 1. `prisma db push` → crea/actualiza las tablas.
 2. `node prisma/seed.mjs` → crea los usuarios y carga el catálogo (es idempotente: no duplica productos).
+3. `node prisma/import-areas.mjs` → carga el catálogo de áreas `COD → ÁREA` (idempotente).
+4. `node prisma/import-inventario.mjs` → carga stock y precios del inventario CSV (idempotente).
 
 No hace falta ejecutar nada a mano. Al terminar el arranque ya se puede ingresar con `admin@stock.local` / `Admin123!`. **Cambiar la contraseña del admin apenas se ingrese.**
 
@@ -236,41 +257,65 @@ con certificado Let's Encrypt automático. Para usar un dominio propio:
 | Síntoma | Causa / solución |
 |---|---|
 | `Error: Failed to load chunk` | Build previo obsoleto. Hacer **Clean build** (limpiar caché de Docker) y redeploy. |
-| `unable to open database file` | Falta el volumen en `/data` o `DATABASE_URL` apunta a una ruta sin montar. Verificar volumen. |
+| `P1001: Can't reach database server` | La app no llega al servicio Postgres. Verificar que el servicio esté corriendo y que `DATABASE_URL` use el hostname interno correcto. |
+| `Database "stock" does not exist` | Crear la base en el servicio Postgres: `CREATE DATABASE "stock";` (el entrypoint no la crea). |
 | `Error: listen EADDRINUSE :::3000` | Puerto 3000 ocupado en el host. En Dokploy no ocurre (aislamiento por contenedor). |
-| Login no funciona / 401 | Revisar que `DATABASE_URL` coincida con la del volumen y que el seed del entrypoint se haya ejecutado (ver logs del arranque). |
+| Login no funciona / 401 | Revisar que `DATABASE_URL` apunte a la base correcta y que el seed del entrypoint se haya ejecutado (ver logs del arranque). |
 | Certificado SSL no emitido | Verificar registro DNS A y que el server tenga el puerto 443 abierto; reiniciar traefik en el host (`docker restart dokploy-traefik`) para limpiar autorizaciones fallidas. |
 
-## Migrar a PostgreSQL (opcional)
+## Importar inventario de librería (CSV)
 
-El modelo soporta migrar de SQLite a PostgreSQL:
-
-1. En `prisma/schema.prisma` cambiar el provider:
-
-```prisma
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-```
-
-2. Cambiar `DATABASE_URL` a una conexión Postgres, por ejemplo:
-
-```env
-DATABASE_URL="postgresql://brandall:TU_PASSWORD@basededato-6cfbai:5432/stock"
-DB_HOST=186.153.163.188
-```
-
-> `DB_HOST` es la IP pública del servicio de Postgres (para herramientas externas). Dentro de Dokploy la app se conecta con el hostname interno del servicio (`basededato-6cfbai`).
-
-3. Regenerar y aplicar esquema:
+El repositorio incluye `prisma/inventario.csv` (catálogo A01–A198 con stock y precios) y un importador idempotente que hace **upsert por SKU** (código interno `COD. INT`, o código de barras si falta), tomando el nombre del inventario como autoridad:
 
 ```bash
-npx prisma generate
-npx prisma db push
-npm run db:seed
+npm run db:inventario
 ```
 
-4. En Dokploy, quitar el volumen SQLite y apuntar `DATABASE_URL` al servicio Postgres (se puede usar un servicio **PostgreSQL** de Dokploy).
+Qué hace:
 
-> Al cambiar de motor, eliminar el archivo SQLite local si quedó como respaldo. Los datos no se migran automáticamente.
+- Crea la categoría `Librería` si no existe.
+- Para cada fila con código: actualiza (o crea) el producto con `name`, `barcode`, `stock` (decimales redondeados a entero) y `salePrice` (el `PRECIO UNIT.`).
+- Los `#N/A`, `$ -` y celdas vacías se tratan como 0/null.
+- Los códigos repetidos dentro del archivo mantienen la primera fila (ej. `A07` aparece como "Nº2" y "Nº3"; se conserva el que tiene stock).
+- Las filas sin código ni barcode se omiten (ej. `LLAVEROS IDENTIFICADORES ACRIMET`).
+
+> El `campo barcode` se agregó al modelo `Product` (visible en el formulario, ficha y buscador). Requiere `prisma db push` antes de correr el importador.
+
+## Importar movimientos históricos (TSV)
+
+El módulo de movimientos se puede poblar con el historial de la librería (alta de stock inicial + entradas/salidas posteriores). Preparación:
+
+1. Guardar el movimiento original (texto separado por **tabs**, con su fila de encabezado) en `prisma/movimientos.tsv`. Columnas esperadas (en orden):
+
+   `Nº · FECHA · AÑO · MES · CÓDIGO · PRODUCTO · ENTRADAS · SALIDAS · NETO · COD.2 · DEPARTAMENTO · RETIRA/ENTREGA · OBSERVACIONES`
+
+2. Ejecutar:
+
+```bash
+npm run db:movimientos
+```
+
+Qué hace:
+
+- **Solo historial**: crea los `StockMovement` (INGRESO/SALIDA/AJUSTE según `ENTRADAS`/`SALIDAS`/`NETO`) sin modificar el `stock` actual de los productos (que queda como lo dejó el inventario).
+- Asigna la fecha real cuando existe (ej. `03/02/2025` en el ALTA STOCK INICIAL); los movimientos sin fecha (AÑO `1899` de Excel) se cargan con `31/12/2025` (constante `FECHA_DEFECTO` al inicio del script, editable).
+- Crea automáticamente los productos que no existen (nombre del catálogo o del archivo, categoría por prefijo `A`–`G`).
+- Las filas sin código (incluidos los `#N/A`) o con importes vacíos se omiten con aviso por consola.
+- `reason` combina `OBSERVACIONES`, `RETIRA/ENTREGA` y `DEPARTAMENTO` con el prefijo `[Importado]`.
+- Es **idempotente**: si ya hay movimientos `[Importado]`, aborta avisando; para reimportar tras cambiar el archivo: `node prisma/import-movimientos.mjs --reset`.
+- El `stock` anterior/nuevo se reconstruye en memoria desde el ALTA STOCK INICIAL.
+
+> El importador busca `prisma/movimientos.tsv`; si el archivo no existe, avisa sin tocar nada. El `prisma/movimientos.tsv` incluido en el repo es un **ejemplo de prueba**: reemplazarlo con el movimiento real antes de importar en producción. El entrypoint de deploy **no** corre este importador.
+
+## Áreas (catálogo COD → ÁREA)
+
+Las **áreas** son las materias, cátedras y dependencias a las que se destina el stock. Se importan desde `prisma/areas.tsv` (186 áreas: materias con prefijo `A/C/D/E/M/H/L/P/TE` y dependencias `O1`–`O48`):
+
+```bash
+npm run db:areas
+```
+
+- Es **idempotente**: hace upsert por código, no duplica ni borra nada.
+- Las áreas quedan disponibles en `/areas` (CRUD solo administrador) y como destino en los formularios de **Ingreso** y **Salida** (selector "Área / destino").
+- Cada movimiento guarda su `areaId`; la página **Movimientos** permite filtrar por área y muestra la columna correspondiente.
+- El importador de movimientos (`db:movimientos`) mapea la columna `COD.2` del TSV al área usando este catálogo; si no se corrió `db:areas`, avisa por consola y deja esos movimientos sin área.

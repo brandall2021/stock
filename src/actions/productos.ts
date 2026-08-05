@@ -40,6 +40,7 @@ export async function createProduct(formData: FormData) {
 
   const data = {
     sku,
+    barcode: String(formData.get("barcode") ?? "").trim() || null,
     name,
     description: String(formData.get("description") ?? "").trim() || null,
     categoryId: String(formData.get("categoryId") ?? "") || null,
@@ -76,6 +77,7 @@ export async function updateProduct(formData: FormData) {
       where: { id },
       data: {
         sku,
+        barcode: String(formData.get("barcode") ?? "").trim() || null,
         name,
         description: String(formData.get("description") ?? "").trim() || null,
         categoryId: String(formData.get("categoryId") ?? "") || null,

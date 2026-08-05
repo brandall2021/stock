@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { registerIngreso, registerSalida, registerAjuste } from "@/actions/movimientos";
-import type { Supplier } from "@prisma/client";
+import type { Area, Supplier } from "@prisma/client";
 import { Button, Input, Label, Select } from "@/components/ui";
 import { useFormAction } from "@/lib/useFormAction";
 
@@ -20,11 +20,13 @@ export function StockMovementForms({
   productName,
   currentStock,
   suppliers,
+  areas,
 }: {
   productId: string;
   productName: string;
   currentStock: number;
   suppliers: Supplier[];
+  areas: Area[];
 }) {
   const [open, setOpen] = useState<string | null>(null);
 
@@ -88,6 +90,17 @@ export function StockMovementForms({
             <Label>Motivo (opcional)</Label>
             <Input name="reason" placeholder="Ej: compra de reposición" />
           </div>
+          <div>
+            <Label>Área / destino</Label>
+            <Select name="areaId" defaultValue="">
+              <option value="">Sin área</option>
+              {areas.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.code} · {a.name}
+                </option>
+              ))}
+            </Select>
+          </div>
           <div className="flex items-center justify-between">
             <p className="text-xs text-zinc-500">
               Stock actual: <b>{currentStock}</b> · {productName}
@@ -118,6 +131,17 @@ export function StockMovementForms({
                 <option>Ajuste manual</option>
               </Select>
             </div>
+          </div>
+          <div>
+            <Label>Área / destino</Label>
+            <Select name="areaId" defaultValue="">
+              <option value="">Sin área</option>
+              {areas.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.code} · {a.name}
+                </option>
+              ))}
+            </Select>
           </div>
           <div className="flex items-center justify-between">
             <p className="text-xs text-zinc-500">

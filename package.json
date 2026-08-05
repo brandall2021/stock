@@ -9,6 +9,9 @@
     "lint": "eslint",
     "db:push": "prisma db push",
     "db:seed": "node prisma/seed.mjs",
+    "db:inventario": "node prisma/import-inventario.mjs",
+    "db:movimientos": "node prisma/import-movimientos.mjs",
+    "db:areas": "node prisma/import-areas.mjs",
     "typecheck": "tsc --noEmit"
   },
   "prisma": {

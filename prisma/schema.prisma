@@ -50,6 +50,14 @@ model Category {
   products    Product[]
 }
 
+model Area {
+  id        String         @id @default(cuid())
+  code      String         @unique
+  name      String
+  createdAt DateTime       @default(now())
+  movements StockMovement[]
+}
+
 model Supplier {
   id        String            @id @default(cuid())
   name      String            @unique
@@ -66,6 +74,7 @@ model Supplier {
 model Product {
   id            String            @id @default(cuid())
   sku           String            @unique
+  barcode       String?
   name          String
   description   String?
   categoryId    String?
@@ -103,6 +112,8 @@ model StockMovement {
   unitCost      Float        @default(0)
   supplierId    String?
   supplier      Supplier?    @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  areaId        String?
+  area          Area?        @relation(fields: [areaId], references: [id], onDelete: SetNull)
   invoiceNumber String?
   reason        String?
   previousStock Int
@@ -113,5 +124,6 @@ model StockMovement {
 
   @@index([productId])
   @@index([type])
+  @@index([areaId])
   @@index([createdAt])
 }
