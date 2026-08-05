@@ -3,8 +3,10 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 
 # Dependencias primero (mejor caché de build)
+# Fallback a `npm install` porque el lock generado en Windows no trae los
+# binarios opcionales de Linux (ej. @img/sharp-*) y `npm ci` falla con EUSAGE.
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci || npm install
 
 # Generar cliente Prisma durante el build
 COPY prisma ./prisma
