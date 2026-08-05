@@ -142,6 +142,14 @@ export function StockMovementForms({
               ))}
             </Select>
           </div>
+          <div>
+            <Label>Retira / Entrega</Label>
+            <Input name="retiraEntrega" placeholder="Apellido, Nombre de quien retira o entrega" />
+          </div>
+          <div>
+            <Label>Observaciones</Label>
+            <Input name="observaciones" placeholder="Detalle adicional (opcional)" />
+          </div>
           <div className="flex items-center justify-between">
             <p className="text-xs text-zinc-500">
               Stock actual: <b>{currentStock}</b> · {productName}

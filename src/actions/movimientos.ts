@@ -101,6 +101,8 @@ export async function registerSalida(formData: FormData) {
         type: MovementType.SALIDA,
         quantity,
         reason,
+        retiraEntrega: str(formData.get("retiraEntrega")),
+        observaciones: str(formData.get("observaciones")),
         areaId: areaId ?? undefined,
         previousStock,
         newStock,

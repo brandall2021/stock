@@ -237,6 +237,8 @@ async function main() {
         quantity: qty,
         unitCost: 0,
         reason: reasonFor(r.obs, r.retira, r.depto),
+        retiraEntrega: r.retira,
+        observaciones: r.obs,
         areaId: r.cod2 ? areaMap.get(r.cod2) ?? null : null,
         previousStock: prev,
         newStock: next,

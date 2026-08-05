@@ -53,6 +53,7 @@ export default async function SalidasPage() {
                   <Th>Producto</Th>
                   <Th className="text-right">Cant.</Th>
                   <Th>Motivo</Th>
+                  <Th>Retira/Entrega</Th>
                   <Th>Área</Th>
                   <Th>Usuario</Th>
                 </tr>
@@ -73,6 +74,7 @@ export default async function SalidasPage() {
                       -{formatNumber(m.quantity)}
                     </Td>
                     <Td>{m.reason ?? "—"}</Td>
+                    <Td>{m.retiraEntrega ?? "—"}</Td>
                     <Td>{m.area?.name ?? "—"}</Td>
                     <Td>{m.user.name}</Td>
                   </tr>

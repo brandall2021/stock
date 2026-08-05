@@ -58,6 +58,14 @@ export function SalidaForm({
           ))}
         </Select>
       </div>
+      <div>
+        <Label>Retira / Entrega</Label>
+        <Input name="retiraEntrega" placeholder="Apellido, Nombre de quien retira o entrega" />
+      </div>
+      <div>
+        <Label>Observaciones</Label>
+        <Input name="observaciones" placeholder="Detalle adicional (opcional)" />
+      </div>
       <div className="flex justify-end">
         <Button type="submit" disabled={pending}>
           {pending ? "Registrando…" : "Registrar salida"}

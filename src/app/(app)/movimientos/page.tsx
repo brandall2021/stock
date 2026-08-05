@@ -117,6 +117,8 @@ export default async function MovimientosPage({
                 <Th className="text-right">Antes</Th>
                 <Th className="text-right">Después</Th>
                 <Th>Motivo</Th>
+                <Th>Retira/Entrega</Th>
+                <Th>Observaciones</Th>
                 <Th>Proveedor</Th>
                 <Th>Área</Th>
                 <Th>Usuario</Th>
@@ -148,6 +150,8 @@ export default async function MovimientosPage({
                   <Td className="text-right">{formatNumber(m.previousStock)}</Td>
                   <Td className="text-right">{formatNumber(m.newStock)}</Td>
                   <Td className="text-zinc-500">{m.reason ?? "—"}</Td>
+                  <Td className="text-zinc-500">{m.retiraEntrega ?? "—"}</Td>
+                  <Td className="text-zinc-500">{m.observaciones ?? "—"}</Td>
                   <Td>{m.supplier?.name ?? "—"}</Td>
                   <Td>{m.area?.name ?? "—"}</Td>
                   <Td>{m.user.name}</Td>
