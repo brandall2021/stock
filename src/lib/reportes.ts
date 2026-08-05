@@ -77,6 +77,43 @@ export async function getMovementPeriodRows(
   return [...byProduct.values()].sort((a, b) => b.ingreso - a.ingreso);
 }
 
+export async function getMovementCategoryRows(
+  desde?: string,
+  hasta?: string
+): Promise<MovementPeriodRow[]> {
+  const where: Record<string, unknown> = {};
+  if (desde || hasta) {
+    where.createdAt = {
+      ...(desde ? { gte: new Date(`${desde}T00:00:00`) } : {}),
+      ...(hasta ? { lte: new Date(`${hasta}T23:59:59`) } : {}),
+    };
+  }
+  const movements = await db.stockMovement.findMany({
+    where,
+    include: { product: { include: { category: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const byCategory = new Map<string, MovementPeriodRow>();
+  for (const m of movements) {
+    const key = m.product.categoryId ?? "sin";
+    const row = byCategory.get(key) ?? {
+      name: m.product.category?.name ?? "Sin categoría",
+      ingreso: 0,
+      salida: 0,
+      costo: 0,
+    };
+    if (m.type === MovementType.INGRESO) {
+      row.ingreso += m.quantity;
+      row.costo += m.quantity * m.unitCost;
+    } else if (m.type === MovementType.SALIDA) {
+      row.salida += m.quantity;
+    }
+    byCategory.set(key, row);
+  }
+  return [...byCategory.values()].sort((a, b) => b.ingreso - a.ingreso);
+}
+
 export type SupplierRow = {
   name: string;
   ingresos: number;

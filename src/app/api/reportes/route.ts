@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/auth";
 import {
   getAreaRows,
   getLowStockRows,
+  getMovementCategoryRows,
   getMovementPeriodRows,
   getStockRows,
   getSupplierRows,
@@ -49,6 +50,17 @@ export async function GET(request: NextRequest) {
         { header: "Costo ingresado", value: (r) => r.costo },
       ];
       csv = toCsv(columns, await getMovementPeriodRows(desde, hasta));
+      break;
+    }
+    case "movcat": {
+      filename = "reporte-movimientos-por-categoria.csv";
+      const columns: CsvColumn<MovementPeriodRow>[] = [
+        { header: "Categoría", value: (r) => r.name },
+        { header: "Ingresos", value: (r) => r.ingreso },
+        { header: "Salidas", value: (r) => r.salida },
+        { header: "Costo ingresado", value: (r) => r.costo },
+      ];
+      csv = toCsv(columns, await getMovementCategoryRows(desde, hasta));
       break;
     }
     case "areas": {

@@ -5,6 +5,7 @@ import { formatCurrency, formatNumber } from "@/lib/format";
 import {
   getAreaRows,
   getLowStockRows,
+  getMovementCategoryRows,
   getMovementPeriodRows,
   getStockRows,
   getSupplierRows,
@@ -17,6 +18,7 @@ const TABS = [
   { key: "stock", label: "Stock actual" },
   { key: "bajo", label: "Bajo stock" },
   { key: "movimientos", label: "Movimientos por período" },
+  { key: "movcat", label: "Movimientos por categoría" },
   { key: "areas", label: "Por área" },
   { key: "proveedores", label: "Entradas por proveedor" },
   { key: "valorizacion", label: "Valorización" },
@@ -31,6 +33,46 @@ function DownloadButton({ href }: { href: string }) {
     >
       <span aria-hidden>⬇</span> Descargar CSV
     </a>
+  );
+}
+
+function PeriodFilter({
+  tab,
+  desde,
+  hasta,
+}: {
+  tab: string;
+  desde?: string;
+  hasta?: string;
+}) {
+  return (
+    <form method="GET" className="flex flex-wrap items-end gap-3">
+      <input type="hidden" name="tab" value={tab} />
+      <div>
+        <label className="mb-1 block text-xs font-medium text-zinc-500">Desde</label>
+        <input
+          type="date"
+          name="desde"
+          defaultValue={desde ?? ""}
+          className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
+        />
+      </div>
+      <div>
+        <label className="mb-1 block text-xs font-medium text-zinc-500">Hasta</label>
+        <input
+          type="date"
+          name="hasta"
+          defaultValue={hasta ?? ""}
+          className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
+        />
+      </div>
+      <button
+        type="submit"
+        className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+      >
+        Aplicar
+      </button>
+    </form>
   );
 }
 
@@ -70,6 +112,7 @@ export default async function ReportesPage({
       {tab === "stock" && <StockActual />}
       {tab === "bajo" && <BajoStock />}
       {tab === "movimientos" && <MovimientosPorPeriodo desde={params.desde} hasta={params.hasta} />}
+      {tab === "movcat" && <MovimientosPorCategoria desde={params.desde} hasta={params.hasta} />}
       {tab === "areas" && <PorArea />}
       {tab === "proveedores" && <EntradasPorProveedor />}
       {tab === "valorizacion" && <Valorizacion />}
@@ -215,33 +258,7 @@ async function MovimientosPorPeriodo({
   return (
     <Card>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-6 py-4">
-        <form method="GET" className="flex flex-wrap items-end gap-3">
-          <input type="hidden" name="tab" value="movimientos" />
-          <div>
-            <label className="mb-1 block text-xs font-medium text-zinc-500">Desde</label>
-            <input
-              type="date"
-              name="desde"
-              defaultValue={desde ?? ""}
-              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-zinc-500">Hasta</label>
-            <input
-              type="date"
-              name="hasta"
-              defaultValue={hasta ?? ""}
-              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
-            />
-          </div>
-          <button
-            type="submit"
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-          >
-            Aplicar
-          </button>
-        </form>
+        <PeriodFilter tab="movimientos" desde={desde} hasta={hasta} />
         <DownloadButton href={`/api/reportes?${params.toString()}`} />
       </div>
       <div className="overflow-x-auto">
@@ -249,6 +266,57 @@ async function MovimientosPorPeriodo({
           <thead>
             <tr className="border-b border-zinc-200 bg-zinc-50">
               <Th>Producto</Th>
+              <Th className="text-right">Ingresos</Th>
+              <Th className="text-right">Salidas</Th>
+              <Th className="text-right">Costo ingresado</Th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-zinc-100">
+            {rows.map((r) => (
+              <tr key={r.name}>
+                <Td className="font-medium text-zinc-900">{r.name}</Td>
+                <Td className="text-right font-semibold text-emerald-600">
+                  +{formatNumber(r.ingreso)}
+                </Td>
+                <Td className="text-right font-semibold text-red-600">
+                  -{formatNumber(r.salida)}
+                </Td>
+                <Td className="text-right">{formatCurrency(r.costo)}</Td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {rows.length === 0 && (
+          <EmptyState message="Sin movimientos en el período seleccionado." />
+        )}
+      </div>
+    </Card>
+  );
+}
+
+async function MovimientosPorCategoria({
+  desde,
+  hasta,
+}: {
+  desde?: string;
+  hasta?: string;
+}) {
+  const rows = await getMovementCategoryRows(desde, hasta);
+  const params = new URLSearchParams({ tab: "movcat" });
+  if (desde) params.set("desde", desde);
+  if (hasta) params.set("hasta", hasta);
+
+  return (
+    <Card>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-6 py-4">
+        <PeriodFilter tab="movcat" desde={desde} hasta={hasta} />
+        <DownloadButton href={`/api/reportes?${params.toString()}`} />
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-zinc-200 bg-zinc-50">
+              <Th>Categoría</Th>
               <Th className="text-right">Ingresos</Th>
               <Th className="text-right">Salidas</Th>
               <Th className="text-right">Costo ingresado</Th>
