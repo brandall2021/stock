@@ -63,7 +63,7 @@ export function StockMovementForms({
         <form action={ingresoAction} className="space-y-4 rounded-xl border border-zinc-200 p-4">
           <input type="hidden" name="productId" value={productId} />
           <ErrorBox error={ingresoState.error} />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <Label>Cantidad</Label>
               <Input name="quantity" type="number" min="1" required />
@@ -117,7 +117,7 @@ export function StockMovementForms({
         <form action={salidaAction} className="space-y-4 rounded-xl border border-zinc-200 p-4">
           <input type="hidden" name="productId" value={productId} />
           <ErrorBox error={salidaState.error} />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <Label>Cantidad</Label>
               <Input name="quantity" type="number" min="1" required />
@@ -166,7 +166,7 @@ export function StockMovementForms({
         <form action={ajusteAction} className="space-y-4 rounded-xl border border-zinc-200 p-4">
           <input type="hidden" name="productId" value={productId} />
           <ErrorBox error={ajusteState.error} />
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <Label>Variación (+/-)</Label>
               <Input name="delta" type="number" required placeholder="Ej: 5 o -3" />

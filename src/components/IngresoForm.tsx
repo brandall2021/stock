@@ -38,7 +38,7 @@ export function IngresoForm({
           }))}
         />
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <Label>Cantidad</Label>
           <Input name="quantity" type="number" min="1" required />
@@ -48,7 +48,7 @@ export function IngresoForm({
           <Input name="unitCost" type="number" step="0.01" min="0" />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <Label>Proveedor</Label>
           <SearchSelect

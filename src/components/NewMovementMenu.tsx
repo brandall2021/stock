@@ -23,9 +23,9 @@ export function NewMovementMenu({ canEdit }: { canEdit: boolean }) {
 
   return (
     <div ref={ref} className="relative">
-      <Button onClick={() => setOpen((o) => !o)}>
+      <Button onClick={() => setOpen((o) => !o)} className="px-3 sm:px-4">
         <IconPlus className="h-4 w-4" />
-        Nuevo movimiento
+        <span className="hidden sm:inline">Nuevo movimiento</span>
       </Button>
       {open && (
         <div className="absolute right-0 top-full z-30 mt-2 w-64 overflow-hidden rounded-xl border border-line bg-white p-1.5 shadow-lg">

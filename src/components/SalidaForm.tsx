@@ -39,7 +39,7 @@ export function SalidaForm({
           Escriba el nombre, SKU o código de barras, o escanee el código del producto.
         </p>
       </div>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <Label>Cantidad</Label>
           <Input name="quantity" type="number" min="1" required />

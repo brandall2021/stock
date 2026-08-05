@@ -16,7 +16,13 @@ export type NavGroup = {
   items: NavItem[];
 };
 
-export function SidebarNav({ groups }: { groups: NavGroup[] }) {
+export function SidebarNav({
+  groups,
+  onNavigate,
+}: {
+  groups: NavGroup[];
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
 
   return (
@@ -37,6 +43,7 @@ export function SidebarNav({ groups }: { groups: NavGroup[] }) {
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={onNavigate}
                   className={cn(
                     "group relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150",
                     active
