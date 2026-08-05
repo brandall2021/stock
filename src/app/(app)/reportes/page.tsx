@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { requireAuth } from "@/lib/auth";
+import { db } from "@/lib/db";
 import { Card, PageHeader, Td, Th, EmptyState, Badge } from "@/components/ui";
 import { PrintButton } from "@/components/PrintButton";
 import { formatCurrency, formatNumber } from "@/lib/format";
@@ -14,6 +15,7 @@ import {
   getValorizationRows,
   parseSort,
   sortRows,
+  type ReportFilters,
   type SortSpec,
 } from "@/lib/reportes";
 import { cn } from "@/lib/cn";
@@ -101,42 +103,115 @@ function SortableTh({
   );
 }
 
-function PeriodFilter({
+const inputCls =
+  "rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900";
+
+function ReportFilter({
   tab,
+  sort,
+  q,
+  categoria,
+  estado,
   desde,
   hasta,
+  categorias,
+  showCategoria,
+  showEstado,
+  showPeriodo,
 }: {
   tab: string;
+  sort: SortSpec;
+  q?: string;
+  categoria?: string;
+  estado?: string;
   desde?: string;
   hasta?: string;
+  categorias: { name: string }[];
+  showCategoria?: boolean;
+  showEstado?: boolean;
+  showPeriodo?: boolean;
 }) {
+  const active = Boolean(q || categoria || estado || desde || hasta);
   return (
     <form method="GET" className="flex flex-wrap items-end gap-3 print:hidden">
       <input type="hidden" name="tab" value={tab} />
+      <input
+        type="hidden"
+        name="sort"
+        value={sort ? `${sort.dir === "desc" ? "-" : ""}${sort.field}` : ""}
+      />
       <div>
-        <label className="mb-1 block text-xs font-medium text-zinc-500">Desde</label>
+        <label className="mb-1 block text-xs font-medium text-zinc-500">Buscar</label>
         <input
-          type="date"
-          name="desde"
-          defaultValue={desde ?? ""}
-          className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
+          type="text"
+          name="q"
+          defaultValue={q ?? ""}
+          placeholder="Nombre, código…"
+          className={inputCls}
         />
       </div>
-      <div>
-        <label className="mb-1 block text-xs font-medium text-zinc-500">Hasta</label>
-        <input
-          type="date"
-          name="hasta"
-          defaultValue={hasta ?? ""}
-          className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
-        />
+      {showCategoria && (
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-500">Categoría</label>
+          <select name="categoria" defaultValue={categoria ?? ""} className={inputCls}>
+            <option value="">Todas</option>
+            {categorias.map((c) => (
+              <option key={c.name} value={c.name}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+      {showEstado && (
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-500">Estado</label>
+          <select name="estado" defaultValue={estado ?? ""} className={inputCls}>
+            <option value="">Todos</option>
+            <option value="sin">Sin stock</option>
+            <option value="bajo">Bajo</option>
+            <option value="ok">OK</option>
+          </select>
+        </div>
+      )}
+      {showPeriodo && (
+        <>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-zinc-500">Desde</label>
+            <input
+              type="date"
+              name="desde"
+              defaultValue={desde ?? ""}
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-zinc-500">Hasta</label>
+            <input
+              type="date"
+              name="hasta"
+              defaultValue={hasta ?? ""}
+              className={inputCls}
+            />
+          </div>
+        </>
+      )}
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+        >
+          Filtrar
+        </button>
+        {active && (
+          <a
+            href={`/reportes?tab=${tab}`}
+            className="flex items-center rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-50"
+          >
+            Limpiar
+          </a>
+        )}
       </div>
-      <button
-        type="submit"
-        className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-      >
-        Aplicar
-      </button>
     </form>
   );
 }
@@ -144,12 +219,29 @@ function PeriodFilter({
 export default async function ReportesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; desde?: string; hasta?: string; sort?: string }>;
+  searchParams: Promise<{
+    tab?: string;
+    desde?: string;
+    hasta?: string;
+    sort?: string;
+    q?: string;
+    categoria?: string;
+    estado?: string;
+  }>;
 }) {
   await requireAuth();
   const params = await searchParams;
   const tab = TABS.some((t) => t.key === params.tab) ? params.tab! : "stock";
   const sort = parseSort(params.sort);
+  const categorias = await db.category.findMany({
+    orderBy: { name: "asc" },
+    select: { name: true },
+  });
+  const filtros = {
+    q: params.q,
+    categoria: params.categoria,
+    estado: params.estado,
+  };
 
   return (
     <div>
@@ -187,26 +279,55 @@ export default async function ReportesPage({
         ))}
       </div>
 
-      {tab === "stock" && <StockActual sort={sort} />}
-      {tab === "bajo" && <BajoStock sort={sort} />}
+      {tab === "stock" && (
+        <StockActual
+          sort={sort}
+          filtros={filtros}
+          categorias={categorias}
+        />
+      )}
+      {tab === "bajo" && (
+        <BajoStock sort={sort} filtros={filtros} categorias={categorias} />
+      )}
       {tab === "movimientos" && (
-        <MovimientosPorPeriodo sort={sort} desde={params.desde} hasta={params.hasta} />
+        <MovimientosPorPeriodo
+          sort={sort}
+          filtros={filtros}
+          desde={params.desde}
+          hasta={params.hasta}
+        />
       )}
       {tab === "movcat" && (
-        <MovimientosPorCategoria sort={sort} desde={params.desde} hasta={params.hasta} />
+        <MovimientosPorCategoria
+          sort={sort}
+          filtros={filtros}
+          desde={params.desde}
+          hasta={params.hasta}
+        />
       )}
-      {tab === "areas" && <PorArea sort={sort} />}
-      {tab === "proveedores" && <EntradasPorProveedor sort={sort} />}
-      {tab === "valorizacion" && <Valorizacion sort={sort} />}
-      {tab === "movidos" && <MasMovidos sort={sort} />}
+      {tab === "areas" && <PorArea sort={sort} filtros={filtros} />}
+      {tab === "proveedores" && <EntradasPorProveedor sort={sort} filtros={filtros} />}
+      {tab === "valorizacion" && <Valorizacion sort={sort} filtros={filtros} />}
+      {tab === "movidos" && <MasMovidos sort={sort} filtros={filtros} />}
     </div>
   );
 }
 
-async function StockActual({ sort }: { sort: SortSpec }) {
+async function StockActual({
+  sort,
+  filtros,
+  categorias,
+}: {
+  sort: SortSpec;
+  filtros: ReportFilters;
+  categorias: { name: string }[];
+}) {
   const base = new URLSearchParams({ tab: "stock" });
   if (sort) base.set("sort", `${sort.dir === "desc" ? "-" : ""}${sort.field}`);
-  const rows = sortRows(await getStockRows(), sort, {
+  if (filtros.q) base.set("q", filtros.q);
+  if (filtros.categoria) base.set("categoria", filtros.categoria);
+  if (filtros.estado) base.set("estado", filtros.estado);
+  const rows = sortRows(await getStockRows(filtros), sort, {
     name: (r) => r.name,
     category: (r) => r.category,
     stock: (r) => r.stock,
@@ -220,6 +341,16 @@ async function StockActual({ sort }: { sort: SortSpec }) {
   return (
     <Card>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-6 py-4">
+        <ReportFilter
+          tab="stock"
+          sort={sort}
+          q={filtros.q}
+          categoria={filtros.categoria}
+          estado={filtros.estado}
+          categorias={categorias}
+          showCategoria
+          showEstado
+        />
         <p className="text-sm text-zinc-500">
           <b className="text-zinc-900">{rows.length}</b> productos ·{" "}
           <b className="text-zinc-900">{formatNumber(totalUnits)}</b> unidades · valor{" "}
@@ -285,10 +416,20 @@ async function StockActual({ sort }: { sort: SortSpec }) {
   );
 }
 
-async function BajoStock({ sort }: { sort: SortSpec }) {
+async function BajoStock({
+  sort,
+  filtros,
+  categorias,
+}: {
+  sort: SortSpec;
+  filtros: ReportFilters;
+  categorias: { name: string }[];
+}) {
   const base = new URLSearchParams({ tab: "bajo" });
   if (sort) base.set("sort", `${sort.dir === "desc" ? "-" : ""}${sort.field}`);
-  const rows = sortRows(await getLowStockRows(), sort, {
+  if (filtros.q) base.set("q", filtros.q);
+  if (filtros.categoria) base.set("categoria", filtros.categoria);
+  const rows = sortRows(await getLowStockRows(filtros), sort, {
     name: (r) => r.name,
     stock: (r) => r.stock,
     stockMin: (r) => r.stockMin,
@@ -298,6 +439,14 @@ async function BajoStock({ sort }: { sort: SortSpec }) {
   return (
     <Card>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-6 py-4">
+        <ReportFilter
+          tab="bajo"
+          sort={sort}
+          q={filtros.q}
+          categoria={filtros.categoria}
+          categorias={categorias}
+          showCategoria
+        />
         <p className="text-sm text-zinc-500">
           <b className="text-red-600">{rows.length}</b> productos por debajo o igual al mínimo
         </p>
@@ -343,10 +492,12 @@ async function BajoStock({ sort }: { sort: SortSpec }) {
 
 async function MovimientosPorPeriodo({
   sort,
+  filtros,
   desde,
   hasta,
 }: {
   sort: SortSpec;
+  filtros: ReportFilters;
   desde?: string;
   hasta?: string;
 }) {
@@ -354,7 +505,8 @@ async function MovimientosPorPeriodo({
   if (desde) base.set("desde", desde);
   if (hasta) base.set("hasta", hasta);
   if (sort) base.set("sort", `${sort.dir === "desc" ? "-" : ""}${sort.field}`);
-  const rows = sortRows(await getMovementPeriodRows(desde, hasta), sort, {
+  if (filtros.q) base.set("q", filtros.q);
+  const rows = sortRows(await getMovementPeriodRows(desde, hasta, filtros), sort, {
     name: (r) => r.name,
     ingreso: (r) => r.ingreso,
     salida: (r) => r.salida,
@@ -364,7 +516,15 @@ async function MovimientosPorPeriodo({
   return (
     <Card>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-6 py-4">
-        <PeriodFilter tab="movimientos" desde={desde} hasta={hasta} />
+        <ReportFilter
+          tab="movimientos"
+          sort={sort}
+          q={filtros.q}
+          desde={desde}
+          hasta={hasta}
+          categorias={[]}
+          showPeriodo
+        />
         <ReportActions base={base} />
       </div>
       <div className="overflow-x-auto">
@@ -402,10 +562,12 @@ async function MovimientosPorPeriodo({
 
 async function MovimientosPorCategoria({
   sort,
+  filtros,
   desde,
   hasta,
 }: {
   sort: SortSpec;
+  filtros: ReportFilters;
   desde?: string;
   hasta?: string;
 }) {
@@ -413,7 +575,8 @@ async function MovimientosPorCategoria({
   if (desde) base.set("desde", desde);
   if (hasta) base.set("hasta", hasta);
   if (sort) base.set("sort", `${sort.dir === "desc" ? "-" : ""}${sort.field}`);
-  const rows = sortRows(await getMovementCategoryRows(desde, hasta), sort, {
+  if (filtros.q) base.set("q", filtros.q);
+  const rows = sortRows(await getMovementCategoryRows(desde, hasta, filtros), sort, {
     name: (r) => r.name,
     ingreso: (r) => r.ingreso,
     salida: (r) => r.salida,
@@ -423,7 +586,15 @@ async function MovimientosPorCategoria({
   return (
     <Card>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-6 py-4">
-        <PeriodFilter tab="movcat" desde={desde} hasta={hasta} />
+        <ReportFilter
+          tab="movcat"
+          sort={sort}
+          q={filtros.q}
+          desde={desde}
+          hasta={hasta}
+          categorias={[]}
+          showPeriodo
+        />
         <ReportActions base={base} />
       </div>
       <div className="overflow-x-auto">
@@ -459,10 +630,17 @@ async function MovimientosPorCategoria({
   );
 }
 
-async function PorArea({ sort }: { sort: SortSpec }) {
+async function PorArea({
+  sort,
+  filtros,
+}: {
+  sort: SortSpec;
+  filtros: ReportFilters;
+}) {
   const base = new URLSearchParams({ tab: "areas" });
   if (sort) base.set("sort", `${sort.dir === "desc" ? "-" : ""}${sort.field}`);
-  const rows = sortRows(await getAreaRows(), sort, {
+  if (filtros.q) base.set("q", filtros.q);
+  const rows = sortRows(await getAreaRows(filtros), sort, {
     name: (r) => r.name,
     code: (r) => r.code,
     movimientos: (r) => r.movimientos,
@@ -475,6 +653,12 @@ async function PorArea({ sort }: { sort: SortSpec }) {
   return (
     <Card>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-6 py-4">
+        <ReportFilter
+          tab="areas"
+          sort={sort}
+          q={filtros.q}
+          categorias={[]}
+        />
         <p className="text-sm text-zinc-500">
           <b className="text-zinc-900">{rows.length}</b> áreas ·{" "}
           <b className="text-zinc-900">{conMovimientos}</b> con movimientos
@@ -518,10 +702,17 @@ async function PorArea({ sort }: { sort: SortSpec }) {
   );
 }
 
-async function EntradasPorProveedor({ sort }: { sort: SortSpec }) {
+async function EntradasPorProveedor({
+  sort,
+  filtros,
+}: {
+  sort: SortSpec;
+  filtros: ReportFilters;
+}) {
   const base = new URLSearchParams({ tab: "proveedores" });
   if (sort) base.set("sort", `${sort.dir === "desc" ? "-" : ""}${sort.field}`);
-  const rows = sortRows(await getSupplierRows(), sort, {
+  if (filtros.q) base.set("q", filtros.q);
+  const rows = sortRows(await getSupplierRows(filtros), sort, {
     name: (r) => r.name,
     ingresos: (r) => r.ingresos,
     unidades: (r) => r.unidades,
@@ -530,7 +721,13 @@ async function EntradasPorProveedor({ sort }: { sort: SortSpec }) {
 
   return (
     <Card>
-      <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-6 py-4">
+        <ReportFilter
+          tab="proveedores"
+          sort={sort}
+          q={filtros.q}
+          categorias={[]}
+        />
         <p className="text-sm font-medium text-zinc-900">Entradas por proveedor</p>
         <ReportActions base={base} />
       </div>
@@ -563,10 +760,17 @@ async function EntradasPorProveedor({ sort }: { sort: SortSpec }) {
   );
 }
 
-async function Valorizacion({ sort }: { sort: SortSpec }) {
+async function Valorizacion({
+  sort,
+  filtros,
+}: {
+  sort: SortSpec;
+  filtros: ReportFilters;
+}) {
   const base = new URLSearchParams({ tab: "valorizacion" });
   if (sort) base.set("sort", `${sort.dir === "desc" ? "-" : ""}${sort.field}`);
-  const rows = sortRows(await getValorizationRows(), sort, {
+  if (filtros.q) base.set("q", filtros.q);
+  const rows = sortRows(await getValorizationRows(filtros), sort, {
     name: (r) => r.name,
     unidades: (r) => r.unidades,
     valor: (r) => r.valor,
@@ -577,6 +781,12 @@ async function Valorizacion({ sort }: { sort: SortSpec }) {
   return (
     <Card>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-6 py-4">
+        <ReportFilter
+          tab="valorizacion"
+          sort={sort}
+          q={filtros.q}
+          categorias={[]}
+        />
         <p className="text-sm text-zinc-500">
           Valorización total del inventario:{" "}
           <b className="text-zinc-900">{formatCurrency(total)}</b>
@@ -609,10 +819,17 @@ async function Valorizacion({ sort }: { sort: SortSpec }) {
   );
 }
 
-async function MasMovidos({ sort }: { sort: SortSpec }) {
+async function MasMovidos({
+  sort,
+  filtros,
+}: {
+  sort: SortSpec;
+  filtros: ReportFilters;
+}) {
   const base = new URLSearchParams({ tab: "movidos" });
   if (sort) base.set("sort", `${sort.dir === "desc" ? "-" : ""}${sort.field}`);
-  const rows = sortRows(await getTopMovedRows(), sort, {
+  if (filtros.q) base.set("q", filtros.q);
+  const rows = sortRows(await getTopMovedRows(filtros), sort, {
     name: (r) => r.name,
     movimientos: (r) => r.movimientos,
     unidades: (r) => r.unidades,
@@ -620,7 +837,8 @@ async function MasMovidos({ sort }: { sort: SortSpec }) {
 
   return (
     <Card>
-      <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-6 py-4">
+        <ReportFilter tab="movidos" sort={sort} q={filtros.q} categorias={[]} />
         <p className="text-sm font-medium text-zinc-900">Productos más movidos</p>
         <ReportActions base={base} />
       </div>

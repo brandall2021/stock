@@ -16,6 +16,7 @@ import {
   type CsvColumn,
   type MovedRow,
   type MovementPeriodRow,
+  type ReportFilters,
   type StockRow,
   type SupplierRow,
   type ValorizationRow,
@@ -28,6 +29,11 @@ export async function GET(request: NextRequest) {
   const desde = params.get("desde") ?? undefined;
   const hasta = params.get("hasta") ?? undefined;
   const sort = parseSort(params.get("sort"));
+  const filtros: ReportFilters = {
+    q: params.get("q") ?? undefined,
+    categoria: params.get("categoria") ?? undefined,
+    estado: params.get("estado") ?? undefined,
+  };
 
   let filename = "reporte-stock.csv";
   let csv = "";
@@ -41,7 +47,7 @@ export async function GET(request: NextRequest) {
         { header: "Mínimo", value: (r) => r.stockMin },
         { header: "Diferencia", value: (r) => r.stockMin - r.stock },
       ];
-      csv = toCsv(columns, sortRows(await getLowStockRows(), sort, {
+      csv = toCsv(columns, sortRows(await getLowStockRows(filtros), sort, {
         name: (r) => r.name,
         stock: (r) => r.stock,
         stockMin: (r) => r.stockMin,
@@ -57,7 +63,7 @@ export async function GET(request: NextRequest) {
         { header: "Salidas", value: (r) => r.salida },
         { header: "Costo ingresado", value: (r) => r.costo },
       ];
-      csv = toCsv(columns, sortRows(await getMovementPeriodRows(desde, hasta), sort, {
+      csv = toCsv(columns, sortRows(await getMovementPeriodRows(desde, hasta, filtros), sort, {
         name: (r) => r.name,
         ingreso: (r) => r.ingreso,
         salida: (r) => r.salida,
@@ -73,7 +79,7 @@ export async function GET(request: NextRequest) {
         { header: "Salidas", value: (r) => r.salida },
         { header: "Costo ingresado", value: (r) => r.costo },
       ];
-      csv = toCsv(columns, sortRows(await getMovementCategoryRows(desde, hasta), sort, {
+      csv = toCsv(columns, sortRows(await getMovementCategoryRows(desde, hasta, filtros), sort, {
         name: (r) => r.name,
         ingreso: (r) => r.ingreso,
         salida: (r) => r.salida,
@@ -91,7 +97,7 @@ export async function GET(request: NextRequest) {
         { header: "Salidas", value: (r) => r.salidas },
         { header: "Valor ingresado", value: (r) => r.valor },
       ];
-      csv = toCsv(columns, sortRows(await getAreaRows(), sort, {
+      csv = toCsv(columns, sortRows(await getAreaRows(filtros), sort, {
         name: (r) => r.name,
         code: (r) => r.code,
         movimientos: (r) => r.movimientos,
@@ -109,7 +115,7 @@ export async function GET(request: NextRequest) {
         { header: "Unidades", value: (r) => r.unidades },
         { header: "Total comprado", value: (r) => r.costo },
       ];
-      csv = toCsv(columns, sortRows(await getSupplierRows(), sort, {
+      csv = toCsv(columns, sortRows(await getSupplierRows(filtros), sort, {
         name: (r) => r.name,
         ingresos: (r) => r.ingresos,
         unidades: (r) => r.unidades,
@@ -125,7 +131,7 @@ export async function GET(request: NextRequest) {
         { header: "Valor", value: (r) => r.valor },
         { header: "% del total", value: (r) => r.pct.toFixed(1) },
       ];
-      csv = toCsv(columns, sortRows(await getValorizationRows(), sort, {
+      csv = toCsv(columns, sortRows(await getValorizationRows(filtros), sort, {
         name: (r) => r.name,
         unidades: (r) => r.unidades,
         valor: (r) => r.valor,
@@ -140,7 +146,7 @@ export async function GET(request: NextRequest) {
         { header: "Movimientos", value: (r) => r.movimientos },
         { header: "Unidades", value: (r) => r.unidades },
       ];
-      csv = toCsv(columns, sortRows(await getTopMovedRows(), sort, {
+      csv = toCsv(columns, sortRows(await getTopMovedRows(filtros), sort, {
         name: (r) => r.name,
         movimientos: (r) => r.movimientos,
         unidades: (r) => r.unidades,
@@ -166,7 +172,7 @@ export async function GET(request: NextRequest) {
                 : "OK",
         },
       ];
-      csv = toCsv(columns, sortRows(await getStockRows(), sort, {
+      csv = toCsv(columns, sortRows(await getStockRows(filtros), sort, {
         name: (r) => r.name,
         category: (r) => r.category,
         stock: (r) => r.stock,

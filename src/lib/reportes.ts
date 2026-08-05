@@ -1,6 +1,8 @@
 import { db } from "@/lib/db";
 import { MovementType } from "@prisma/client";
 
+export type ReportFilters = { q?: string; categoria?: string; estado?: string };
+
 export type StockRow = {
   id: string;
   name: string;
@@ -10,24 +12,39 @@ export type StockRow = {
   purchasePrice: number;
 };
 
-export async function getStockRows(): Promise<StockRow[]> {
+function matchesQuery(value: string, q?: string) {
+  return !q || value.toLowerCase().includes(q.toLowerCase());
+}
+
+export async function getStockRows(f: ReportFilters = {}): Promise<StockRow[]> {
   const products = await db.product.findMany({
     where: { active: true },
     include: { category: true },
     orderBy: { name: "asc" },
   });
-  return products.map((p) => ({
-    id: p.id,
-    name: p.name,
-    category: p.category?.name ?? "Sin categoría",
-    stock: p.stock,
-    stockMin: p.stockMin,
-    purchasePrice: p.purchasePrice,
-  }));
+  return products
+    .filter((p) => {
+      if (!matchesQuery(p.name, f.q)) return false;
+      if (f.categoria && (p.category?.name ?? "Sin categoría") !== f.categoria)
+        return false;
+      if (f.estado === "sin" && p.stock !== 0) return false;
+      if (f.estado === "bajo" && !(p.stock > 0 && p.stock <= p.stockMin))
+        return false;
+      if (f.estado === "ok" && !(p.stock > p.stockMin)) return false;
+      return true;
+    })
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      category: p.category?.name ?? "Sin categoría",
+      stock: p.stock,
+      stockMin: p.stockMin,
+      purchasePrice: p.purchasePrice,
+    }));
 }
 
-export async function getLowStockRows(): Promise<StockRow[]> {
-  const rows = await getStockRows();
+export async function getLowStockRows(f: ReportFilters = {}): Promise<StockRow[]> {
+  const rows = await getStockRows(f);
   return rows
     .filter((r) => r.stock <= r.stockMin)
     .sort((a, b) => a.stock - b.stock);
@@ -42,7 +59,8 @@ export type MovementPeriodRow = {
 
 export async function getMovementPeriodRows(
   desde?: string,
-  hasta?: string
+  hasta?: string,
+  f: ReportFilters = {}
 ): Promise<MovementPeriodRow[]> {
   const where: Record<string, unknown> = {};
   if (desde || hasta) {
@@ -74,12 +92,15 @@ export async function getMovementPeriodRows(
     }
     byProduct.set(m.productId, row);
   }
-  return [...byProduct.values()].sort((a, b) => b.ingreso - a.ingreso);
+  return [...byProduct.values()]
+    .filter((r) => matchesQuery(r.name, f.q))
+    .sort((a, b) => b.ingreso - a.ingreso);
 }
 
 export async function getMovementCategoryRows(
   desde?: string,
-  hasta?: string
+  hasta?: string,
+  f: ReportFilters = {}
 ): Promise<MovementPeriodRow[]> {
   const where: Record<string, unknown> = {};
   if (desde || hasta) {
@@ -111,7 +132,9 @@ export async function getMovementCategoryRows(
     }
     byCategory.set(key, row);
   }
-  return [...byCategory.values()].sort((a, b) => b.ingreso - a.ingreso);
+  return [...byCategory.values()]
+    .filter((r) => matchesQuery(r.name, f.q))
+    .sort((a, b) => b.ingreso - a.ingreso);
 }
 
 export type SupplierRow = {
@@ -121,7 +144,7 @@ export type SupplierRow = {
   costo: number;
 };
 
-export async function getSupplierRows(): Promise<SupplierRow[]> {
+export async function getSupplierRows(f: ReportFilters = {}): Promise<SupplierRow[]> {
   const movements = await db.stockMovement.findMany({
     where: { type: MovementType.INGRESO, supplierId: { not: null } },
     include: { supplier: true },
@@ -141,7 +164,9 @@ export async function getSupplierRows(): Promise<SupplierRow[]> {
     row.ingresos += 1;
     bySupplier.set(m.supplierId!, row);
   }
-  return [...bySupplier.values()].sort((a, b) => b.costo - a.costo);
+  return [...bySupplier.values()]
+    .filter((r) => matchesQuery(r.name, f.q))
+    .sort((a, b) => b.costo - a.costo);
 }
 
 export type ValorizationRow = {
@@ -151,7 +176,7 @@ export type ValorizationRow = {
   pct: number;
 };
 
-export async function getValorizationRows(): Promise<ValorizationRow[]> {
+export async function getValorizationRows(f: ReportFilters = {}): Promise<ValorizationRow[]> {
   const products = await db.product.findMany({
     where: { active: true },
     include: { category: true },
@@ -162,6 +187,7 @@ export async function getValorizationRows(): Promise<ValorizationRow[]> {
     { name: string; unidades: number; valor: number }
   >();
   for (const p of products) {
+    if (!matchesQuery(p.category?.name ?? "Sin categoría", f.q)) continue;
     const key = p.categoryId ?? "sin";
     const row = byCategory.get(key) ?? {
       name: p.category?.name ?? "Sin categoría",
@@ -186,7 +212,7 @@ export type MovedRow = {
   unidades: number;
 };
 
-export async function getTopMovedRows(): Promise<MovedRow[]> {
+export async function getTopMovedRows(f: ReportFilters = {}): Promise<MovedRow[]> {
   const movements = await db.stockMovement.findMany({
     include: { product: true },
   });
@@ -203,6 +229,7 @@ export async function getTopMovedRows(): Promise<MovedRow[]> {
     byProduct.set(m.productId, row);
   }
   return [...byProduct.values()]
+    .filter((r) => matchesQuery(r.name, f.q))
     .sort((a, b) => b.movimientos - a.movimientos)
     .slice(0, 20);
 }
@@ -216,7 +243,7 @@ export type AreaRow = {
   valor: number;
 };
 
-export async function getAreaRows(): Promise<AreaRow[]> {
+export async function getAreaRows(f: ReportFilters = {}): Promise<AreaRow[]> {
   const [areas, movements] = await Promise.all([
     db.area.findMany({ orderBy: { name: "asc" } }),
     db.stockMovement.findMany({ include: { area: true } }),
@@ -244,17 +271,19 @@ export async function getAreaRows(): Promise<AreaRow[]> {
     byArea.set(m.areaId, row);
   }
 
-  return areas.map((a) => {
-    const row = byArea.get(a.id);
-    return {
-      code: a.code,
-      name: a.name,
-      ingresos: row?.ingresos ?? 0,
-      salidas: row?.salidas ?? 0,
-      movimientos: row?.movimientos ?? 0,
-      valor: row?.valor ?? 0,
-    };
-  });
+  return areas
+    .filter((a) => matchesQuery(a.name, f.q))
+    .map((a) => {
+      const row = byArea.get(a.id);
+      return {
+        code: a.code,
+        name: a.name,
+        ingresos: row?.ingresos ?? 0,
+        salidas: row?.salidas ?? 0,
+        movimientos: row?.movimientos ?? 0,
+        valor: row?.valor ?? 0,
+      };
+    });
 }
 
 export type SortDir = "asc" | "desc";
