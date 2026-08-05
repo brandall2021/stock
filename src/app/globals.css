@@ -79,3 +79,33 @@ body {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
+
+/* Impresión: tablas legibles y sin romper filas */
+@media print {
+  body {
+    background: #fff;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  thead {
+    display: table-header-group;
+  }
+  tr {
+    break-inside: avoid;
+  }
+  th,
+  td {
+    padding: 6px 8px;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  th {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .overflow-x-auto {
+    overflow: visible;
+  }
+}

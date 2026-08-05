@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireAuth } from "@/lib/auth";
 import { Card, PageHeader, Td, Th, EmptyState, Badge } from "@/components/ui";
+import { PrintButton } from "@/components/PrintButton";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import {
   getAreaRows,
@@ -37,6 +38,29 @@ function DownloadButton({ base }: { base: URLSearchParams }) {
     >
       <span aria-hidden>⬇</span> Descargar CSV
     </a>
+  );
+}
+
+function ReportActions({ base }: { base: URLSearchParams }) {
+  return (
+    <div className="flex shrink-0 items-center gap-2 print:hidden">
+      <PrintButton />
+      <DownloadButton base={base} />
+    </div>
+  );
+}
+
+function PrintHeader({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <div className="mb-4 hidden print:block">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+        Reporte
+      </p>
+      <h1 className="font-display text-2xl font-semibold tracking-tight text-slate-900">
+        {title}
+      </h1>
+      <p className="mt-1 text-sm text-zinc-500">{subtitle}</p>
+    </div>
   );
 }
 
@@ -87,7 +111,7 @@ function PeriodFilter({
   hasta?: string;
 }) {
   return (
-    <form method="GET" className="flex flex-wrap items-end gap-3">
+    <form method="GET" className="flex flex-wrap items-end gap-3 print:hidden">
       <input type="hidden" name="tab" value={tab} />
       <div>
         <label className="mb-1 block text-xs font-medium text-zinc-500">Desde</label>
@@ -129,12 +153,24 @@ export default async function ReportesPage({
 
   return (
     <div>
-      <PageHeader
-        title="Reportes"
-        description="Análisis del inventario"
+      <div className="print:hidden">
+        <PageHeader
+          title="Reportes"
+          description="Análisis del inventario"
+        />
+      </div>
+
+      <PrintHeader
+        title={TABS.find((t) => t.key === tab)?.label ?? "Stock actual"}
+        subtitle={`Generado el ${new Date().toLocaleDateString("es-AR", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        })}`}
       />
 
-      <div className="mb-6 flex flex-wrap gap-2">
+      <div className="mb-6 flex flex-wrap gap-2 print:hidden">
         {TABS.map((t) => (
           <a
             key={t.key}
@@ -189,7 +225,7 @@ async function StockActual({ sort }: { sort: SortSpec }) {
           <b className="text-zinc-900">{formatNumber(totalUnits)}</b> unidades · valor{" "}
           <b className="text-zinc-900">{formatCurrency(totalValue)}</b>
         </p>
-        <DownloadButton base={base} />
+        <ReportActions base={base} />
       </div>
       <div className="overflow-x-auto">
         <table className="w-full">
@@ -265,7 +301,7 @@ async function BajoStock({ sort }: { sort: SortSpec }) {
         <p className="text-sm text-zinc-500">
           <b className="text-red-600">{rows.length}</b> productos por debajo o igual al mínimo
         </p>
-        <DownloadButton base={base} />
+        <ReportActions base={base} />
       </div>
       <div className="overflow-x-auto">
         <table className="w-full">
@@ -329,7 +365,7 @@ async function MovimientosPorPeriodo({
     <Card>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-6 py-4">
         <PeriodFilter tab="movimientos" desde={desde} hasta={hasta} />
-        <DownloadButton base={base} />
+        <ReportActions base={base} />
       </div>
       <div className="overflow-x-auto">
         <table className="w-full">
@@ -388,7 +424,7 @@ async function MovimientosPorCategoria({
     <Card>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-6 py-4">
         <PeriodFilter tab="movcat" desde={desde} hasta={hasta} />
-        <DownloadButton base={base} />
+        <ReportActions base={base} />
       </div>
       <div className="overflow-x-auto">
         <table className="w-full">
@@ -443,7 +479,7 @@ async function PorArea({ sort }: { sort: SortSpec }) {
           <b className="text-zinc-900">{rows.length}</b> áreas ·{" "}
           <b className="text-zinc-900">{conMovimientos}</b> con movimientos
         </p>
-        <DownloadButton base={base} />
+        <ReportActions base={base} />
       </div>
       <div className="overflow-x-auto">
         <table className="w-full">
@@ -496,7 +532,7 @@ async function EntradasPorProveedor({ sort }: { sort: SortSpec }) {
     <Card>
       <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
         <p className="text-sm font-medium text-zinc-900">Entradas por proveedor</p>
-        <DownloadButton base={base} />
+        <ReportActions base={base} />
       </div>
       <div className="overflow-x-auto">
         <table className="w-full">
@@ -545,7 +581,7 @@ async function Valorizacion({ sort }: { sort: SortSpec }) {
           Valorización total del inventario:{" "}
           <b className="text-zinc-900">{formatCurrency(total)}</b>
         </p>
-        <DownloadButton base={base} />
+        <ReportActions base={base} />
       </div>
       <div className="overflow-x-auto">
         <table className="w-full">
@@ -586,7 +622,7 @@ async function MasMovidos({ sort }: { sort: SortSpec }) {
     <Card>
       <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
         <p className="text-sm font-medium text-zinc-900">Productos más movidos</p>
-        <DownloadButton base={base} />
+        <ReportActions base={base} />
       </div>
       <div className="overflow-x-auto">
         <table className="w-full">

@@ -61,7 +61,7 @@ export function AppShell({
     <div className="app-shell min-h-screen">
       {menuOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden print:hidden"
           onClick={closeMenu}
           aria-hidden
         />
@@ -69,7 +69,7 @@ export function AppShell({
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-sidebar-line bg-sidebar transition-transform duration-200 ease-in-out",
+          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-sidebar-line bg-sidebar transition-transform duration-200 ease-in-out print:hidden",
           menuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
@@ -129,8 +129,8 @@ export function AppShell({
         </div>
       </aside>
 
-      <div className="lg:pl-64">
-        <header className="sticky top-0 z-20 border-b border-line bg-white/90 backdrop-blur">
+      <div className="lg:pl-64 print:pl-0">
+        <header className="sticky top-0 z-20 border-b border-line bg-white/90 backdrop-blur print:hidden">
           <div className="flex h-16 items-center justify-between gap-3 px-4 sm:px-8">
             <div className="flex min-w-0 items-center gap-3">
               <button
@@ -183,7 +183,7 @@ export function AppShell({
           </div>
         </header>
 
-        <main className="mx-auto max-w-[1400px] px-4 py-6 sm:px-8 sm:py-8">
+        <main className="mx-auto max-w-[1400px] px-4 py-6 sm:px-8 sm:py-8 print:max-w-none print:px-4 print:py-4">
           {children}
         </main>
       </div>
