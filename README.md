@@ -257,8 +257,11 @@ datasource db {
 2. Cambiar `DATABASE_URL` a una conexión Postgres, por ejemplo:
 
 ```env
-DATABASE_URL="postgresql://user:password@host:5432/stock"
+DATABASE_URL="postgresql://brandall:TU_PASSWORD@basededato-6cfbai:5432/stock"
+DB_HOST=186.153.163.188
 ```
+
+> `DB_HOST` es la IP pública del servicio de Postgres (para herramientas externas). Dentro de Dokploy la app se conecta con el hostname interno del servicio (`basededato-6cfbai`).
 
 3. Regenerar y aplicar esquema:
 

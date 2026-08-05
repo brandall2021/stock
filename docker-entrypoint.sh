@@ -2,8 +2,8 @@
 set -e
 
 if [ -z "$DATABASE_URL" ]; then
-  echo "→ DATABASE_URL no definida, usando file:/data/stock.db"
-  export DATABASE_URL="file:/data/stock.db"
+  echo "→ DATABASE_URL no definida, construyendo desde variables DB_*"
+  export DATABASE_URL="postgresql://${DB_USER:-brandall}:${DB_PASSWORD}@${DB_HOST:-basededato-6cfbai}:${DB_PORT:-5432}/${DB_NAME:-stock}"
 fi
 
 echo "→ Aplicando esquema de base de datos (prisma db push)"
