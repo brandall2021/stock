@@ -11,6 +11,9 @@ import {
   getSupplierRows,
   getTopMovedRows,
   getValorizationRows,
+  parseSort,
+  sortRows,
+  type SortSpec,
 } from "@/lib/reportes";
 import { cn } from "@/lib/cn";
 
@@ -25,7 +28,8 @@ const TABS = [
   { key: "movidos", label: "Más movidos" },
 ];
 
-function DownloadButton({ href }: { href: string }) {
+function DownloadButton({ base }: { base: URLSearchParams }) {
+  const href = `/api/reportes?${base.toString()}`;
   return (
     <a
       href={href}
@@ -33,6 +37,43 @@ function DownloadButton({ href }: { href: string }) {
     >
       <span aria-hidden>⬇</span> Descargar CSV
     </a>
+  );
+}
+
+function SortableTh({
+  field,
+  label,
+  sort,
+  base,
+  align = "left",
+}: {
+  field: string;
+  label: string;
+  sort: SortSpec;
+  base: URLSearchParams;
+  align?: "left" | "right";
+}) {
+  const active = sort?.field === field;
+  const nextDir = active && sort.dir === "asc" ? "desc" : "asc";
+  const next = new URLSearchParams(base);
+  next.set("sort", `${nextDir === "desc" ? "-" : ""}${field}`);
+  const Arrow = active ? (sort.dir === "asc" ? "▲" : "▼") : "↕";
+
+  return (
+    <Th className={align === "right" ? "text-right" : undefined}>
+      <a
+        href={`/reportes?${next.toString()}`}
+        className={cn(
+          "inline-flex items-center gap-1 font-semibold uppercase tracking-wider transition-colors hover:text-indigo-600",
+          active && "text-indigo-600"
+        )}
+      >
+        {label}
+        <span aria-hidden className="text-[9px] leading-none">
+          {Arrow}
+        </span>
+      </a>
+    </Th>
   );
 }
 
@@ -79,11 +120,12 @@ function PeriodFilter({
 export default async function ReportesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; desde?: string; hasta?: string }>;
+  searchParams: Promise<{ tab?: string; desde?: string; hasta?: string; sort?: string }>;
 }) {
   await requireAuth();
   const params = await searchParams;
   const tab = TABS.some((t) => t.key === params.tab) ? params.tab! : "stock";
+  const sort = parseSort(params.sort);
 
   return (
     <div>
@@ -109,20 +151,33 @@ export default async function ReportesPage({
         ))}
       </div>
 
-      {tab === "stock" && <StockActual />}
-      {tab === "bajo" && <BajoStock />}
-      {tab === "movimientos" && <MovimientosPorPeriodo desde={params.desde} hasta={params.hasta} />}
-      {tab === "movcat" && <MovimientosPorCategoria desde={params.desde} hasta={params.hasta} />}
-      {tab === "areas" && <PorArea />}
-      {tab === "proveedores" && <EntradasPorProveedor />}
-      {tab === "valorizacion" && <Valorizacion />}
-      {tab === "movidos" && <MasMovidos />}
+      {tab === "stock" && <StockActual sort={sort} />}
+      {tab === "bajo" && <BajoStock sort={sort} />}
+      {tab === "movimientos" && (
+        <MovimientosPorPeriodo sort={sort} desde={params.desde} hasta={params.hasta} />
+      )}
+      {tab === "movcat" && (
+        <MovimientosPorCategoria sort={sort} desde={params.desde} hasta={params.hasta} />
+      )}
+      {tab === "areas" && <PorArea sort={sort} />}
+      {tab === "proveedores" && <EntradasPorProveedor sort={sort} />}
+      {tab === "valorizacion" && <Valorizacion sort={sort} />}
+      {tab === "movidos" && <MasMovidos sort={sort} />}
     </div>
   );
 }
 
-async function StockActual() {
-  const rows = await getStockRows();
+async function StockActual({ sort }: { sort: SortSpec }) {
+  const base = new URLSearchParams({ tab: "stock" });
+  if (sort) base.set("sort", `${sort.dir === "desc" ? "-" : ""}${sort.field}`);
+  const rows = sortRows(await getStockRows(), sort, {
+    name: (r) => r.name,
+    category: (r) => r.category,
+    stock: (r) => r.stock,
+    stockMin: (r) => r.stockMin,
+    purchasePrice: (r) => r.purchasePrice,
+    valor: (r) => r.stock * r.purchasePrice,
+  });
   const totalValue = rows.reduce((a, r) => a + r.stock * r.purchasePrice, 0);
   const totalUnits = rows.reduce((a, r) => a + r.stock, 0);
 
@@ -134,18 +189,18 @@ async function StockActual() {
           <b className="text-zinc-900">{formatNumber(totalUnits)}</b> unidades · valor{" "}
           <b className="text-zinc-900">{formatCurrency(totalValue)}</b>
         </p>
-        <DownloadButton href="/api/reportes?tab=stock" />
+        <DownloadButton base={base} />
       </div>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-zinc-200 bg-zinc-50">
-              <Th>Producto</Th>
-              <Th>Categoría</Th>
-              <Th className="text-right">Stock</Th>
-              <Th className="text-right">Mínimo</Th>
-              <Th className="text-right">Costo unit.</Th>
-              <Th className="text-right">Valor total</Th>
+              <SortableTh field="name" label="Producto" sort={sort} base={base} />
+              <SortableTh field="category" label="Categoría" sort={sort} base={base} />
+              <SortableTh field="stock" label="Stock" sort={sort} base={base} align="right" />
+              <SortableTh field="stockMin" label="Mínimo" sort={sort} base={base} align="right" />
+              <SortableTh field="purchasePrice" label="Costo unit." sort={sort} base={base} align="right" />
+              <SortableTh field="valor" label="Valor total" sort={sort} base={base} align="right" />
               <Th>Estado</Th>
             </tr>
           </thead>
@@ -194,8 +249,15 @@ async function StockActual() {
   );
 }
 
-async function BajoStock() {
-  const rows = await getLowStockRows();
+async function BajoStock({ sort }: { sort: SortSpec }) {
+  const base = new URLSearchParams({ tab: "bajo" });
+  if (sort) base.set("sort", `${sort.dir === "desc" ? "-" : ""}${sort.field}`);
+  const rows = sortRows(await getLowStockRows(), sort, {
+    name: (r) => r.name,
+    stock: (r) => r.stock,
+    stockMin: (r) => r.stockMin,
+    diferencia: (r) => r.stockMin - r.stock,
+  });
 
   return (
     <Card>
@@ -203,16 +265,16 @@ async function BajoStock() {
         <p className="text-sm text-zinc-500">
           <b className="text-red-600">{rows.length}</b> productos por debajo o igual al mínimo
         </p>
-        <DownloadButton href="/api/reportes?tab=bajo" />
+        <DownloadButton base={base} />
       </div>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-zinc-200 bg-zinc-50">
-              <Th>Producto</Th>
-              <Th className="text-right">Stock</Th>
-              <Th className="text-right">Mínimo</Th>
-              <Th className="text-right">Diferencia</Th>
+              <SortableTh field="name" label="Producto" sort={sort} base={base} />
+              <SortableTh field="stock" label="Stock" sort={sort} base={base} align="right" />
+              <SortableTh field="stockMin" label="Mínimo" sort={sort} base={base} align="right" />
+              <SortableTh field="diferencia" label="Diferencia" sort={sort} base={base} align="right" />
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
@@ -244,31 +306,39 @@ async function BajoStock() {
 }
 
 async function MovimientosPorPeriodo({
+  sort,
   desde,
   hasta,
 }: {
+  sort: SortSpec;
   desde?: string;
   hasta?: string;
 }) {
-  const rows = await getMovementPeriodRows(desde, hasta);
-  const params = new URLSearchParams({ tab: "movimientos" });
-  if (desde) params.set("desde", desde);
-  if (hasta) params.set("hasta", hasta);
+  const base = new URLSearchParams({ tab: "movimientos" });
+  if (desde) base.set("desde", desde);
+  if (hasta) base.set("hasta", hasta);
+  if (sort) base.set("sort", `${sort.dir === "desc" ? "-" : ""}${sort.field}`);
+  const rows = sortRows(await getMovementPeriodRows(desde, hasta), sort, {
+    name: (r) => r.name,
+    ingreso: (r) => r.ingreso,
+    salida: (r) => r.salida,
+    costo: (r) => r.costo,
+  });
 
   return (
     <Card>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-6 py-4">
         <PeriodFilter tab="movimientos" desde={desde} hasta={hasta} />
-        <DownloadButton href={`/api/reportes?${params.toString()}`} />
+        <DownloadButton base={base} />
       </div>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-zinc-200 bg-zinc-50">
-              <Th>Producto</Th>
-              <Th className="text-right">Ingresos</Th>
-              <Th className="text-right">Salidas</Th>
-              <Th className="text-right">Costo ingresado</Th>
+              <SortableTh field="name" label="Producto" sort={sort} base={base} />
+              <SortableTh field="ingreso" label="Ingresos" sort={sort} base={base} align="right" />
+              <SortableTh field="salida" label="Salidas" sort={sort} base={base} align="right" />
+              <SortableTh field="costo" label="Costo ingresado" sort={sort} base={base} align="right" />
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
@@ -295,31 +365,39 @@ async function MovimientosPorPeriodo({
 }
 
 async function MovimientosPorCategoria({
+  sort,
   desde,
   hasta,
 }: {
+  sort: SortSpec;
   desde?: string;
   hasta?: string;
 }) {
-  const rows = await getMovementCategoryRows(desde, hasta);
-  const params = new URLSearchParams({ tab: "movcat" });
-  if (desde) params.set("desde", desde);
-  if (hasta) params.set("hasta", hasta);
+  const base = new URLSearchParams({ tab: "movcat" });
+  if (desde) base.set("desde", desde);
+  if (hasta) base.set("hasta", hasta);
+  if (sort) base.set("sort", `${sort.dir === "desc" ? "-" : ""}${sort.field}`);
+  const rows = sortRows(await getMovementCategoryRows(desde, hasta), sort, {
+    name: (r) => r.name,
+    ingreso: (r) => r.ingreso,
+    salida: (r) => r.salida,
+    costo: (r) => r.costo,
+  });
 
   return (
     <Card>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 px-6 py-4">
         <PeriodFilter tab="movcat" desde={desde} hasta={hasta} />
-        <DownloadButton href={`/api/reportes?${params.toString()}`} />
+        <DownloadButton base={base} />
       </div>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-zinc-200 bg-zinc-50">
-              <Th>Categoría</Th>
-              <Th className="text-right">Ingresos</Th>
-              <Th className="text-right">Salidas</Th>
-              <Th className="text-right">Costo ingresado</Th>
+              <SortableTh field="name" label="Categoría" sort={sort} base={base} />
+              <SortableTh field="ingreso" label="Ingresos" sort={sort} base={base} align="right" />
+              <SortableTh field="salida" label="Salidas" sort={sort} base={base} align="right" />
+              <SortableTh field="costo" label="Costo ingresado" sort={sort} base={base} align="right" />
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
@@ -345,8 +423,17 @@ async function MovimientosPorCategoria({
   );
 }
 
-async function PorArea() {
-  const rows = await getAreaRows();
+async function PorArea({ sort }: { sort: SortSpec }) {
+  const base = new URLSearchParams({ tab: "areas" });
+  if (sort) base.set("sort", `${sort.dir === "desc" ? "-" : ""}${sort.field}`);
+  const rows = sortRows(await getAreaRows(), sort, {
+    name: (r) => r.name,
+    code: (r) => r.code,
+    movimientos: (r) => r.movimientos,
+    ingresos: (r) => r.ingresos,
+    salidas: (r) => r.salidas,
+    valor: (r) => r.valor,
+  });
   const conMovimientos = rows.filter((r) => r.movimientos > 0).length;
 
   return (
@@ -356,17 +443,17 @@ async function PorArea() {
           <b className="text-zinc-900">{rows.length}</b> áreas ·{" "}
           <b className="text-zinc-900">{conMovimientos}</b> con movimientos
         </p>
-        <DownloadButton href="/api/reportes?tab=areas" />
+        <DownloadButton base={base} />
       </div>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-zinc-200 bg-zinc-50">
-              <Th>Área</Th>
-              <Th className="text-right">Movimientos</Th>
-              <Th className="text-right">Ingresos</Th>
-              <Th className="text-right">Salidas</Th>
-              <Th className="text-right">Valor ingresado</Th>
+              <SortableTh field="name" label="Área" sort={sort} base={base} />
+              <SortableTh field="movimientos" label="Movimientos" sort={sort} base={base} align="right" />
+              <SortableTh field="ingresos" label="Ingresos" sort={sort} base={base} align="right" />
+              <SortableTh field="salidas" label="Salidas" sort={sort} base={base} align="right" />
+              <SortableTh field="valor" label="Valor ingresado" sort={sort} base={base} align="right" />
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
@@ -395,23 +482,30 @@ async function PorArea() {
   );
 }
 
-async function EntradasPorProveedor() {
-  const rows = await getSupplierRows();
+async function EntradasPorProveedor({ sort }: { sort: SortSpec }) {
+  const base = new URLSearchParams({ tab: "proveedores" });
+  if (sort) base.set("sort", `${sort.dir === "desc" ? "-" : ""}${sort.field}`);
+  const rows = sortRows(await getSupplierRows(), sort, {
+    name: (r) => r.name,
+    ingresos: (r) => r.ingresos,
+    unidades: (r) => r.unidades,
+    costo: (r) => r.costo,
+  });
 
   return (
     <Card>
       <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
         <p className="text-sm font-medium text-zinc-900">Entradas por proveedor</p>
-        <DownloadButton href="/api/reportes?tab=proveedores" />
+        <DownloadButton base={base} />
       </div>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-zinc-200 bg-zinc-50">
-              <Th>Proveedor</Th>
-              <Th className="text-right">Ingresos</Th>
-              <Th className="text-right">Unidades</Th>
-              <Th className="text-right">Total comprado</Th>
+              <SortableTh field="name" label="Proveedor" sort={sort} base={base} />
+              <SortableTh field="ingresos" label="Ingresos" sort={sort} base={base} align="right" />
+              <SortableTh field="unidades" label="Unidades" sort={sort} base={base} align="right" />
+              <SortableTh field="costo" label="Total comprado" sort={sort} base={base} align="right" />
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
@@ -433,8 +527,15 @@ async function EntradasPorProveedor() {
   );
 }
 
-async function Valorizacion() {
-  const rows = await getValorizationRows();
+async function Valorizacion({ sort }: { sort: SortSpec }) {
+  const base = new URLSearchParams({ tab: "valorizacion" });
+  if (sort) base.set("sort", `${sort.dir === "desc" ? "-" : ""}${sort.field}`);
+  const rows = sortRows(await getValorizationRows(), sort, {
+    name: (r) => r.name,
+    unidades: (r) => r.unidades,
+    valor: (r) => r.valor,
+    pct: (r) => r.pct,
+  });
   const total = rows.reduce((a, r) => a + r.valor, 0);
 
   return (
@@ -444,16 +545,16 @@ async function Valorizacion() {
           Valorización total del inventario:{" "}
           <b className="text-zinc-900">{formatCurrency(total)}</b>
         </p>
-        <DownloadButton href="/api/reportes?tab=valorizacion" />
+        <DownloadButton base={base} />
       </div>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-zinc-200 bg-zinc-50">
-              <Th>Categoría</Th>
-              <Th className="text-right">Unidades</Th>
-              <Th className="text-right">Valor</Th>
-              <Th className="text-right">% del total</Th>
+              <SortableTh field="name" label="Categoría" sort={sort} base={base} />
+              <SortableTh field="unidades" label="Unidades" sort={sort} base={base} align="right" />
+              <SortableTh field="valor" label="Valor" sort={sort} base={base} align="right" />
+              <SortableTh field="pct" label="% del total" sort={sort} base={base} align="right" />
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
@@ -472,22 +573,29 @@ async function Valorizacion() {
   );
 }
 
-async function MasMovidos() {
-  const rows = await getTopMovedRows();
+async function MasMovidos({ sort }: { sort: SortSpec }) {
+  const base = new URLSearchParams({ tab: "movidos" });
+  if (sort) base.set("sort", `${sort.dir === "desc" ? "-" : ""}${sort.field}`);
+  const rows = sortRows(await getTopMovedRows(), sort, {
+    name: (r) => r.name,
+    movimientos: (r) => r.movimientos,
+    unidades: (r) => r.unidades,
+  });
 
   return (
     <Card>
       <div className="flex items-center justify-between border-b border-zinc-200 px-6 py-4">
         <p className="text-sm font-medium text-zinc-900">Productos más movidos</p>
-        <DownloadButton href="/api/reportes?tab=movidos" />
+        <DownloadButton base={base} />
       </div>
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
             <tr className="border-b border-zinc-200 bg-zinc-50">
-              <Th>Producto</Th>
-              <Th className="text-right">Movimientos</Th>
-              <Th className="text-right">Unidades</Th>
+              <Th>#</Th>
+              <SortableTh field="name" label="Producto" sort={sort} base={base} />
+              <SortableTh field="movimientos" label="Movimientos" sort={sort} base={base} align="right" />
+              <SortableTh field="unidades" label="Unidades" sort={sort} base={base} align="right" />
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">

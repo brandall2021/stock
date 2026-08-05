@@ -257,6 +257,36 @@ export async function getAreaRows(): Promise<AreaRow[]> {
   });
 }
 
+export type SortDir = "asc" | "desc";
+export type SortSpec = { field: string; dir: SortDir } | null;
+
+export function parseSort(raw?: string | null): SortSpec {
+  if (!raw) return null;
+  const desc = raw.startsWith("-");
+  const field = desc ? raw.slice(1) : raw;
+  return field ? { field, dir: desc ? "desc" : "asc" } : null;
+}
+
+export function sortRows<T>(
+  rows: T[],
+  sort: SortSpec,
+  accessors: Record<string, (row: T) => string | number>
+): T[] {
+  if (!sort) return rows;
+  const get = accessors[sort.field];
+  if (!get) return rows;
+  const dir = sort.dir === "desc" ? -1 : 1;
+  return [...rows].sort((a, b) => {
+    const av = get(a);
+    const bv = get(b);
+    const cmp =
+      typeof av === "number" && typeof bv === "number"
+        ? av - bv
+        : String(av).localeCompare(String(bv), "es", { numeric: true });
+    return cmp * dir;
+  });
+}
+
 export type CsvColumn<T> = { header: string; value: (row: T) => string | number };
 
 export function toCsv<T>(columns: CsvColumn<T>[], rows: T[]): string {

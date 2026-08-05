@@ -9,6 +9,8 @@ import {
   getSupplierRows,
   getTopMovedRows,
   getValorizationRows,
+  parseSort,
+  sortRows,
   toCsv,
   type AreaRow,
   type CsvColumn,
@@ -25,6 +27,7 @@ export async function GET(request: NextRequest) {
   const tab = params.get("tab") ?? "stock";
   const desde = params.get("desde") ?? undefined;
   const hasta = params.get("hasta") ?? undefined;
+  const sort = parseSort(params.get("sort"));
 
   let filename = "reporte-stock.csv";
   let csv = "";
@@ -38,7 +41,12 @@ export async function GET(request: NextRequest) {
         { header: "Mínimo", value: (r) => r.stockMin },
         { header: "Diferencia", value: (r) => r.stockMin - r.stock },
       ];
-      csv = toCsv(columns, await getLowStockRows());
+      csv = toCsv(columns, sortRows(await getLowStockRows(), sort, {
+        name: (r) => r.name,
+        stock: (r) => r.stock,
+        stockMin: (r) => r.stockMin,
+        diferencia: (r) => r.stockMin - r.stock,
+      }));
       break;
     }
     case "movimientos": {
@@ -49,7 +57,12 @@ export async function GET(request: NextRequest) {
         { header: "Salidas", value: (r) => r.salida },
         { header: "Costo ingresado", value: (r) => r.costo },
       ];
-      csv = toCsv(columns, await getMovementPeriodRows(desde, hasta));
+      csv = toCsv(columns, sortRows(await getMovementPeriodRows(desde, hasta), sort, {
+        name: (r) => r.name,
+        ingreso: (r) => r.ingreso,
+        salida: (r) => r.salida,
+        costo: (r) => r.costo,
+      }));
       break;
     }
     case "movcat": {
@@ -60,7 +73,12 @@ export async function GET(request: NextRequest) {
         { header: "Salidas", value: (r) => r.salida },
         { header: "Costo ingresado", value: (r) => r.costo },
       ];
-      csv = toCsv(columns, await getMovementCategoryRows(desde, hasta));
+      csv = toCsv(columns, sortRows(await getMovementCategoryRows(desde, hasta), sort, {
+        name: (r) => r.name,
+        ingreso: (r) => r.ingreso,
+        salida: (r) => r.salida,
+        costo: (r) => r.costo,
+      }));
       break;
     }
     case "areas": {
@@ -73,7 +91,14 @@ export async function GET(request: NextRequest) {
         { header: "Salidas", value: (r) => r.salidas },
         { header: "Valor ingresado", value: (r) => r.valor },
       ];
-      csv = toCsv(columns, await getAreaRows());
+      csv = toCsv(columns, sortRows(await getAreaRows(), sort, {
+        name: (r) => r.name,
+        code: (r) => r.code,
+        movimientos: (r) => r.movimientos,
+        ingresos: (r) => r.ingresos,
+        salidas: (r) => r.salidas,
+        valor: (r) => r.valor,
+      }));
       break;
     }
     case "proveedores": {
@@ -84,7 +109,12 @@ export async function GET(request: NextRequest) {
         { header: "Unidades", value: (r) => r.unidades },
         { header: "Total comprado", value: (r) => r.costo },
       ];
-      csv = toCsv(columns, await getSupplierRows());
+      csv = toCsv(columns, sortRows(await getSupplierRows(), sort, {
+        name: (r) => r.name,
+        ingresos: (r) => r.ingresos,
+        unidades: (r) => r.unidades,
+        costo: (r) => r.costo,
+      }));
       break;
     }
     case "valorizacion": {
@@ -95,7 +125,12 @@ export async function GET(request: NextRequest) {
         { header: "Valor", value: (r) => r.valor },
         { header: "% del total", value: (r) => r.pct.toFixed(1) },
       ];
-      csv = toCsv(columns, await getValorizationRows());
+      csv = toCsv(columns, sortRows(await getValorizationRows(), sort, {
+        name: (r) => r.name,
+        unidades: (r) => r.unidades,
+        valor: (r) => r.valor,
+        pct: (r) => r.pct,
+      }));
       break;
     }
     case "movidos": {
@@ -105,7 +140,11 @@ export async function GET(request: NextRequest) {
         { header: "Movimientos", value: (r) => r.movimientos },
         { header: "Unidades", value: (r) => r.unidades },
       ];
-      csv = toCsv(columns, await getTopMovedRows());
+      csv = toCsv(columns, sortRows(await getTopMovedRows(), sort, {
+        name: (r) => r.name,
+        movimientos: (r) => r.movimientos,
+        unidades: (r) => r.unidades,
+      }));
       break;
     }
     default: {
@@ -127,7 +166,14 @@ export async function GET(request: NextRequest) {
                 : "OK",
         },
       ];
-      csv = toCsv(columns, await getStockRows());
+      csv = toCsv(columns, sortRows(await getStockRows(), sort, {
+        name: (r) => r.name,
+        category: (r) => r.category,
+        stock: (r) => r.stock,
+        stockMin: (r) => r.stockMin,
+        purchasePrice: (r) => r.purchasePrice,
+        valor: (r) => r.stock * r.purchasePrice,
+      }));
       break;
     }
   }
