@@ -91,7 +91,7 @@ export async function registerSalida(formData: FormData) {
         productId,
         type: MovementType.SALIDA,
         quantity,
-        reason: str(formData.get("reason")) ?? "Venta",
+        reason: str(formData.get("reason")) ?? "Asignación a cátedra",
         areaId: areaId ?? undefined,
         previousStock,
         newStock,

@@ -4,7 +4,7 @@ import { registerSalida } from "@/actions/movimientos";
 import { useFormAction } from "@/lib/useFormAction";
 import type { Area, Product } from "@prisma/client";
 import { Button, Input, Label, Select } from "@/components/ui";
-import { formatNumber } from "@/lib/format";
+import { formatNumber, SALIDA_REASONS } from "@/lib/format";
 
 export function SalidaForm({
   products,
@@ -40,12 +40,10 @@ export function SalidaForm({
         </div>
         <div>
           <Label>Motivo</Label>
-          <Select name="reason" defaultValue="Venta">
-            <option>Venta</option>
-            <option>Uso interno</option>
-            <option>Rotura</option>
-            <option>Devolución</option>
-            <option>Ajuste manual</option>
+          <Select name="reason" defaultValue="Asignación a cátedra">
+            {SALIDA_REASONS.map((r) => (
+              <option key={r}>{r}</option>
+            ))}
           </Select>
         </div>
       </div>

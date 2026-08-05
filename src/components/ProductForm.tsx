@@ -99,7 +99,7 @@ export function ProductForm({
           />
         </div>
         <div>
-          <Label>Precio de venta</Label>
+          <Label>Precio de referencia</Label>
           <Input
             name="salePrice"
             type="number"

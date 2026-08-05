@@ -43,7 +43,7 @@ export const ROLE_LABELS: Record<string, string> = {
 };
 
 export const SALIDA_REASONS = [
-  "Venta",
+  "Asignación a cátedra",
   "Uso interno",
   "Rotura",
   "Devolución",

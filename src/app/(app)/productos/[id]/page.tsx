@@ -110,7 +110,7 @@ export default async function ProductoDetailPage({
               <dd>{formatCurrency(product.purchasePrice)}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-zinc-500">Precio de venta</dt>
+              <dt className="text-zinc-500">Precio de referencia</dt>
               <dd>{formatCurrency(product.salePrice)}</dd>
             </div>
             <div className="flex justify-between">
