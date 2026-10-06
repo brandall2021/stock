@@ -62,9 +62,10 @@ const fieldBase =
 
 export function Input({
   className,
+  ref,
   ...props
-}: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input className={cn(fieldBase, className)} {...props} />;
+}: React.InputHTMLAttributes<HTMLInputElement> & { ref?: React.Ref<HTMLInputElement> }) {
+  return <input ref={ref} className={cn(fieldBase, className)} {...props} />;
 }
 
 export function Select({

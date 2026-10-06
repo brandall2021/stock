@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { registerSalida } from "@/actions/movimientos";
 import { useFormAction } from "@/lib/useFormAction";
 import type { Area, Product } from "@prisma/client";
@@ -15,6 +16,7 @@ export function SalidaForm({
   areas: Area[];
 }) {
   const [state, formAction, pending] = useFormAction(registerSalida);
+  const quantityRef = useRef<HTMLInputElement>(null);
 
   return (
     <form action={formAction} className="space-y-4">
@@ -28,21 +30,25 @@ export function SalidaForm({
         <SearchSelect
           name="productId"
           required
-          placeholder="Buscar por nombre, SKU o código de barras…"
+          autoFocus
+          placeholder="Escanee el código de barras o busque por nombre, SKU o código…"
           options={products.map((p) => ({
             value: p.id,
             label: `${p.name} (${p.sku}) — stock: ${formatNumber(p.stock)}`,
             keywords: `${p.sku} ${p.barcode ?? ""} ${p.name}`,
+            exactMatch: [p.sku, p.barcode ?? ""].filter(Boolean),
           }))}
+          onSelect={() => quantityRef.current?.focus()}
         />
         <p className="mt-1 text-xs text-zinc-500">
-          Escriba el nombre, SKU o código de barras, o escanee el código del producto.
+          Escanee el código de barras (se selecciona solo) y presione Enter para
+          pasar a la cantidad, o escriba nombre / SKU.
         </p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <Label>Cantidad</Label>
-          <Input name="quantity" type="number" min="1" required />
+          <Input ref={quantityRef} name="quantity" type="number" min="1" required />
         </div>
         <div>
           <Label>Motivo</Label>

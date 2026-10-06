@@ -7,10 +7,11 @@ export type SearchSelectOption = {
   value: string;
   label: string;
   keywords?: string;
+  exactMatch?: string[];
 };
 
 function normalize(value: string): string {
-  return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 }
 
 export function SearchSelect({
@@ -21,6 +22,8 @@ export function SearchSelect({
   required = false,
   defaultValue = "",
   className,
+  autoFocus = false,
+  onSelect,
 }: {
   name: string;
   options: SearchSelectOption[];
@@ -29,6 +32,8 @@ export function SearchSelect({
   required?: boolean;
   defaultValue?: string;
   className?: string;
+  autoFocus?: boolean;
+  onSelect?: (option: SearchSelectOption) => void;
 }) {
   const [query, setQuery] = useState(() => {
     const sel = options.find((o) => o.value === defaultValue);
@@ -54,6 +59,18 @@ export function SearchSelect({
 
   const safeHighlight = Math.max(0, Math.min(highlight, list.length - 1));
 
+  const exactMap = useMemo(() => {
+    const map = new Map<string, SearchSelectOption>();
+    for (const opt of options) {
+      if (!opt.value) continue;
+      for (const key of opt.exactMatch ?? []) {
+        const k = normalize(key);
+        if (k && !map.has(k)) map.set(k, opt);
+      }
+    }
+    return map;
+  }, [options]);
+
   useEffect(() => {
     function onDown(e: MouseEvent) {
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
@@ -64,10 +81,20 @@ export function SearchSelect({
     return () => document.removeEventListener("mousedown", onDown);
   }, []);
 
-  const selectOption = (opt: { value: string; label: string }) => {
+  const selectOption = (opt: SearchSelectOption, notify = true) => {
     setValue(opt.value);
     setQuery(opt.label);
     setOpen(false);
+    if (notify && opt.value) onSelect?.(opt);
+  };
+
+  const selectedOption = () => options.find((o) => o.value === value);
+
+  const hasLongerKey = (k: string) => {
+    for (const other of exactMap.keys()) {
+      if (other.length > k.length && other.startsWith(k)) return true;
+    }
+    return false;
   };
 
   const clear = () => {
@@ -86,9 +113,19 @@ export function SearchSelect({
       e.preventDefault();
       setOpen(true);
       setHighlight((h) => Math.max(h - 1, 0));
-    } else if (e.key === "Enter" && open && list.length > 0) {
-      e.preventDefault();
-      selectOption(list[safeHighlight]);
+    } else if (e.key === "Enter") {
+      const hit = exactMap.get(normalize(query));
+      if (hit) {
+        e.preventDefault();
+        selectOption(hit);
+      } else if (open && list.length > 0) {
+        e.preventDefault();
+        selectOption(list[safeHighlight]);
+      } else if (onSelect && value) {
+        e.preventDefault();
+        const sel = selectedOption();
+        if (sel) onSelect(sel);
+      }
     } else if (e.key === "Escape") {
       setOpen(false);
     }
@@ -109,8 +146,17 @@ export function SearchSelect({
           value={query}
           placeholder={placeholder}
           autoComplete="off"
+          autoFocus={autoFocus}
           onChange={(e) => {
-            setQuery(e.target.value);
+            const raw = e.target.value;
+            const key = normalize(raw);
+            const hit = exactMap.get(key);
+            if (hit && !hasLongerKey(key)) {
+              selectOption(hit, false);
+              setHighlight(0);
+              return;
+            }
+            setQuery(raw);
             setValue("");
             setHighlight(0);
             setOpen(true);
@@ -123,6 +169,7 @@ export function SearchSelect({
         {value ? (
           <button
             type="button"
+            tabIndex={-1}
             onClick={clear}
             aria-label="Limpiar selección"
             className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-slate-400 hover:text-slate-700"

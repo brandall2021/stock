@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { registerIngreso } from "@/actions/movimientos";
 import { useFormAction } from "@/lib/useFormAction";
 import type { Area, Product, Supplier } from "@prisma/client";
@@ -17,6 +18,7 @@ export function IngresoForm({
   areas: Area[];
 }) {
   const [state, formAction, pending] = useFormAction(registerIngreso);
+  const quantityRef = useRef<HTMLInputElement>(null);
 
   return (
     <form action={formAction} className="space-y-4">
@@ -30,18 +32,21 @@ export function IngresoForm({
         <SearchSelect
           name="productId"
           required
-          placeholder="Buscar por nombre, SKU o código de barras…"
+          autoFocus
+          placeholder="Escanee el código de barras o busque por nombre, SKU o código…"
           options={products.map((p) => ({
             value: p.id,
             label: `${p.name} (${p.sku}) — stock: ${formatNumber(p.stock)}`,
             keywords: `${p.sku} ${p.barcode ?? ""} ${p.name}`,
+            exactMatch: [p.sku, p.barcode ?? ""].filter(Boolean),
           }))}
+          onSelect={() => quantityRef.current?.focus()}
         />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <Label>Cantidad</Label>
-          <Input name="quantity" type="number" min="1" required />
+          <Input ref={quantityRef} name="quantity" type="number" min="1" required />
         </div>
         <div>
           <Label>Costo unitario</Label>
