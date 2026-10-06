@@ -1,7 +1,12 @@
 import { db } from "@/lib/db";
 import { MovementType } from "@prisma/client";
 
-export type ReportFilters = { q?: string; categoria?: string; estado?: string };
+export type ReportFilters = {
+  q?: string;
+  categoria?: string;
+  estado?: string;
+  incluirCeros?: boolean;
+};
 
 export type StockRow = {
   id: string;
@@ -31,6 +36,7 @@ export async function getStockRows(f: ReportFilters = {}): Promise<StockRow[]> {
       if (f.estado === "bajo" && !(p.stock > 0 && p.stock <= p.stockMin))
         return false;
       if (f.estado === "ok" && !(p.stock > p.stockMin)) return false;
+      if (p.stock === 0 && !f.incluirCeros && f.estado !== "sin") return false;
       return true;
     })
     .map((p) => ({
@@ -44,7 +50,7 @@ export async function getStockRows(f: ReportFilters = {}): Promise<StockRow[]> {
 }
 
 export async function getLowStockRows(f: ReportFilters = {}): Promise<StockRow[]> {
-  const rows = await getStockRows(f);
+  const rows = await getStockRows({ ...f, incluirCeros: true });
   return rows
     .filter((r) => r.stock <= r.stockMin)
     .sort((a, b) => a.stock - b.stock);
