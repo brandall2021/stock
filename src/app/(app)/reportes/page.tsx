@@ -43,10 +43,24 @@ function DownloadButton({ base }: { base: URLSearchParams }) {
   );
 }
 
+function DownloadExcelButton({ base }: { base: URLSearchParams }) {
+  const params = new URLSearchParams(base);
+  params.set("format", "xlsx");
+  return (
+    <a
+      href={`/api/reportes?${params.toString()}`}
+      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50"
+    >
+      <span aria-hidden>⬇</span> Descargar Excel
+    </a>
+  );
+}
+
 function ReportActions({ base }: { base: URLSearchParams }) {
   return (
     <div className="flex shrink-0 items-center gap-2 print:hidden">
       <PrintButton />
+      <DownloadExcelButton base={base} />
       <DownloadButton base={base} />
     </div>
   );
