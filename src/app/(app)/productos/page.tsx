@@ -171,6 +171,12 @@ export default async function ProductosPage({
                     </Td>
                     <Td>
                       <div className="flex items-center justify-end gap-1">
+                        <Link
+                          href={`/productos/${p.id}/etiqueta`}
+                          className="rounded-md px-2 py-1 text-xs font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                        >
+                          Etiqueta
+                        </Link>
                         {canEdit && (
                           <ConfirmButton
                             action={toggleProductActive}

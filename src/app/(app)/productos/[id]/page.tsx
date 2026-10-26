@@ -13,10 +13,12 @@ import {
 } from "@/components/ui";
 import { MovementBadge } from "@/components/MovementBadge";
 import { ProductForm } from "@/components/ProductForm";
+import { ProductCodes } from "@/components/ProductCodes";
 import { StockMovementForms } from "@/components/StockMovementForms";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { deleteProduct } from "@/actions/productos";
 import { formatCurrency, formatDate, formatDateTime, formatNumber } from "@/lib/format";
+import { effectiveBarcode, isGeneratedBarcode } from "@/lib/codes";
 
 function expiraPronto(fecha: Date | null): boolean {
   if (!fecha) return false;
@@ -53,6 +55,9 @@ export default async function ProductoDetailPage({
             <LinkButton href="/productos" variant="secondary">
               Volver
             </LinkButton>
+            <LinkButton href={`/productos/${product.id}/etiqueta`}>
+              Imprimir etiqueta
+            </LinkButton>
             {user.role === "ADMIN" && (
               <ConfirmButton
                 action={deleteProduct}
@@ -81,6 +86,17 @@ export default async function ProductoDetailPage({
           Vence el {formatDate(product.expiryDate)}.
         </div>
       )}
+
+      <ProductCodes
+        product={{
+          id: product.id,
+          sku: product.sku,
+          barcode: product.barcode,
+          name: product.name,
+          description: product.description,
+          categoryName: product.category?.name,
+        }}
+      />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="p-6 lg:col-span-1">
@@ -113,9 +129,16 @@ export default async function ProductoDetailPage({
               <dt className="text-zinc-500">Precio de referencia</dt>
               <dd>{formatCurrency(product.salePrice)}</dd>
             </div>
-            <div className="flex justify-between">
-              <dt className="text-zinc-500">Código de barras</dt>
-              <dd className="tnum">{product.barcode ?? "—"}</dd>
+            <div className="flex justify-between gap-3">
+              <dt className="shrink-0 text-zinc-500">Código de barras</dt>
+              <dd className="tnum text-right">
+                {effectiveBarcode(product)}
+                {isGeneratedBarcode(product) && (
+                  <span className="ml-1 text-[11px] font-normal text-slate-400">
+                    (generado)
+                  </span>
+                )}
+              </dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-zinc-500">Categoría</dt>

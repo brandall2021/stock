@@ -3,9 +3,11 @@ import { requireAuth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Card, PageHeader, Td, Th, EmptyState, Badge } from "@/components/ui";
 import { PrintButton } from "@/components/PrintButton";
+import { ProductLabel } from "@/components/ProductLabel";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import {
   getAreaRows,
+  getLabelRows,
   getLowStockRows,
   getMovementCategoryRows,
   getMovementPeriodRows,
@@ -29,6 +31,7 @@ const TABS = [
   { key: "proveedores", label: "Entradas por proveedor" },
   { key: "valorizacion", label: "Valorización" },
   { key: "movidos", label: "Más movidos" },
+  { key: "etiquetas", label: "Etiquetas QR + barras" },
 ];
 
 function DownloadButton({ base }: { base: URLSearchParams }) {
@@ -241,6 +244,7 @@ export default async function ReportesPage({
     q?: string;
     categoria?: string;
     estado?: string;
+    page?: string;
   }>;
 }) {
   await requireAuth();
@@ -323,6 +327,13 @@ export default async function ReportesPage({
       {tab === "proveedores" && <EntradasPorProveedor sort={sort} filtros={filtros} />}
       {tab === "valorizacion" && <Valorizacion sort={sort} filtros={filtros} />}
       {tab === "movidos" && <MasMovidos sort={sort} filtros={filtros} />}
+      {tab === "etiquetas" && (
+        <EtiquetasQR
+          filtros={filtros}
+          categorias={categorias}
+          page={params.page}
+        />
+      )}
     </div>
   );
 }
@@ -885,6 +896,115 @@ async function MasMovidos({
           <EmptyState message="No hay movimientos registrados." />
         )}
       </div>
+    </Card>
+  );
+}
+
+async function EtiquetasQR({
+  filtros,
+  categorias,
+  page,
+}: {
+  filtros: ReportFilters;
+  categorias: { name: string }[];
+  page?: string;
+}) {
+  const rows = await getLabelRows(filtros);
+  const pageSize = 40;
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const current = Math.min(Math.max(Number(page) || 1, 1), totalPages);
+  const visible = rows.slice((current - 1) * pageSize, current * pageSize);
+
+  const base = new URLSearchParams({ tab: "etiquetas" });
+  if (filtros.q) base.set("q", filtros.q);
+  if (filtros.categoria) base.set("categoria", filtros.categoria);
+  if (filtros.estado) base.set("estado", filtros.estado);
+  const pageHref = (n: number) => {
+    const next = new URLSearchParams(base);
+    next.set("page", String(n));
+    return `/reportes?${next.toString()}`;
+  };
+
+  return (
+    <Card className="print:border-0 print:shadow-none">
+      <div className="border-b border-zinc-200 px-6 py-4 print:hidden">
+        <ReportFilter
+          tab="etiquetas"
+          sort={null}
+          q={filtros.q}
+          categoria={filtros.categoria}
+          estado={filtros.estado}
+          categorias={categorias}
+          showCategoria
+          showEstado
+        />
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 print:hidden">
+        <p className="text-sm text-zinc-500">
+          {rows.length} etiqueta{rows.length === 1 ? "" : "s"} · página {current}{" "}
+          de {totalPages}
+        </p>
+        <div className="flex items-center gap-2">
+          {current > 1 && (
+            <a
+              href={pageHref(current - 1)}
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+            >
+              Anterior
+            </a>
+          )}
+          {current < totalPages && (
+            <a
+              href={pageHref(current + 1)}
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+            >
+              Siguiente
+            </a>
+          )}
+          <PrintButton label="Imprimir etiquetas" />
+        </div>
+      </div>
+
+      {visible.length === 0 ? (
+        <EmptyState message="No hay productos que coincidan con los filtros." />
+      ) : (
+        <div className="label-sheet grid grid-cols-1 gap-4 px-6 pb-6 sm:grid-cols-2 print:px-0 print:pb-0">
+          {visible.map((p) => (
+            <ProductLabel
+              key={p.id}
+              product={{
+                sku: p.sku,
+                barcode: p.barcode,
+                name: p.name,
+                description: p.description,
+                categoryName: p.category,
+                salePrice: p.salePrice,
+                stock: p.stock,
+              }}
+              className="h-[46mm] p-2.5"
+            />
+          ))}
+        </div>
+      )}
+
+      <style>{`
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 8mm;
+          }
+          .label-sheet {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 4mm !important;
+          }
+          .product-label {
+            break-inside: avoid;
+            height: 52mm !important;
+          }
+        }
+      `}</style>
     </Card>
   );
 }

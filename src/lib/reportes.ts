@@ -49,6 +49,52 @@ export async function getStockRows(f: ReportFilters = {}): Promise<StockRow[]> {
     }));
 }
 
+export type LabelRow = {
+  id: string;
+  name: string;
+  sku: string;
+  barcode: string | null;
+  description: string | null;
+  category: string;
+  salePrice: number;
+  stock: number;
+};
+
+export async function getLabelRows(f: ReportFilters = {}): Promise<LabelRow[]> {
+  const q = f.q?.trim().toLowerCase();
+  const products = await db.product.findMany({
+    where: { active: true },
+    include: { category: true },
+    orderBy: { name: "asc" },
+  });
+  return products
+    .filter((p) => {
+      if (q) {
+        const haystack = [p.name, p.sku, p.barcode ?? "", p.description ?? ""]
+          .join(" ")
+          .toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      if (f.categoria && (p.category?.name ?? "Sin categoría") !== f.categoria)
+        return false;
+      if (f.estado === "sin" && p.stock !== 0) return false;
+      if (f.estado === "bajo" && !(p.stock > 0 && p.stock <= p.stockMin))
+        return false;
+      if (f.estado === "ok" && !(p.stock > p.stockMin)) return false;
+      return true;
+    })
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      sku: p.sku,
+      barcode: p.barcode,
+      description: p.description,
+      category: p.category?.name ?? "Sin categoría",
+      salePrice: p.salePrice,
+      stock: p.stock,
+    }));
+}
+
 export async function getLowStockRows(f: ReportFilters = {}): Promise<StockRow[]> {
   const rows = await getStockRows({ ...f, incluirCeros: true });
   return rows

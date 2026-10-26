@@ -64,6 +64,9 @@ export function ProductForm({
             defaultValue={initial?.barcode ?? ""}
             placeholder="7798006055058"
           />
+          <p className="mt-1 text-[11px] text-slate-500">
+            Si se deja vacío, la etiqueta usa el SKU como Code 128.
+          </p>
         </div>
       </div>
 
