@@ -46,7 +46,10 @@ export function isGeneratedBarcode(product: CodeProduct): boolean {
 }
 
 export function qrContent(product: CodeProduct): string {
-  const lines = [`Código: ${product.sku}`];
+  const lines = [
+    `Código: ${product.sku}`,
+    `Código de barras: ${effectiveBarcode(product)}`,
+  ];
   if (product.name) lines.push(`Producto: ${product.name}`);
   if (product.description?.trim()) {
     lines.push(`Descripción: ${product.description.trim()}`);

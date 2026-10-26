@@ -21,6 +21,22 @@ function matchesQuery(value: string, q?: string) {
   return !q || value.toLowerCase().includes(q.toLowerCase());
 }
 
+type SearchableProduct = {
+  name: string;
+  sku?: string | null;
+  barcode?: string | null;
+  description?: string | null;
+};
+
+function productMatchesQuery(p: SearchableProduct, q?: string): boolean {
+  const needle = q?.trim().toLowerCase();
+  if (!needle) return true;
+  return [p.name, p.sku ?? "", p.barcode ?? "", p.description ?? ""]
+    .join(" ")
+    .toLowerCase()
+    .includes(needle);
+}
+
 export async function getStockRows(f: ReportFilters = {}): Promise<StockRow[]> {
   const products = await db.product.findMany({
     where: { active: true },
@@ -29,7 +45,7 @@ export async function getStockRows(f: ReportFilters = {}): Promise<StockRow[]> {
   });
   return products
     .filter((p) => {
-      if (!matchesQuery(p.name, f.q)) return false;
+      if (!productMatchesQuery(p, f.q)) return false;
       if (f.categoria && (p.category?.name ?? "Sin categoría") !== f.categoria)
         return false;
       if (f.estado === "sin" && p.stock !== 0) return false;
@@ -61,7 +77,6 @@ export type LabelRow = {
 };
 
 export async function getLabelRows(f: ReportFilters = {}): Promise<LabelRow[]> {
-  const q = f.q?.trim().toLowerCase();
   const products = await db.product.findMany({
     where: { active: true },
     include: { category: true },
@@ -69,12 +84,7 @@ export async function getLabelRows(f: ReportFilters = {}): Promise<LabelRow[]> {
   });
   return products
     .filter((p) => {
-      if (q) {
-        const haystack = [p.name, p.sku, p.barcode ?? "", p.description ?? ""]
-          .join(" ")
-          .toLowerCase();
-        if (!haystack.includes(q)) return false;
-      }
+      if (!productMatchesQuery(p, f.q)) return false;
       if (f.categoria && (p.category?.name ?? "Sin categoría") !== f.categoria)
         return false;
       if (f.estado === "sin" && p.stock !== 0) return false;
@@ -129,6 +139,7 @@ export async function getMovementPeriodRows(
 
   const byProduct = new Map<string, MovementPeriodRow>();
   for (const m of movements) {
+    if (!productMatchesQuery(m.product, f.q)) continue;
     const row =
       byProduct.get(m.productId) ?? {
         name: m.product.name,
@@ -144,9 +155,7 @@ export async function getMovementPeriodRows(
     }
     byProduct.set(m.productId, row);
   }
-  return [...byProduct.values()]
-    .filter((r) => matchesQuery(r.name, f.q))
-    .sort((a, b) => b.ingreso - a.ingreso);
+  return [...byProduct.values()].sort((a, b) => b.ingreso - a.ingreso);
 }
 
 export async function getMovementCategoryRows(
@@ -271,6 +280,7 @@ export async function getTopMovedRows(f: ReportFilters = {}): Promise<MovedRow[]
 
   const byProduct = new Map<string, MovedRow>();
   for (const m of movements) {
+    if (!productMatchesQuery(m.product, f.q)) continue;
     const row = byProduct.get(m.productId) ?? {
       name: m.product.name,
       movimientos: 0,
@@ -281,7 +291,6 @@ export async function getTopMovedRows(f: ReportFilters = {}): Promise<MovedRow[]
     byProduct.set(m.productId, row);
   }
   return [...byProduct.values()]
-    .filter((r) => matchesQuery(r.name, f.q))
     .sort((a, b) => b.movimientos - a.movimientos)
     .slice(0, 20);
 }

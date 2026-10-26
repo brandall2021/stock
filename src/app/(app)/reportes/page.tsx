@@ -163,7 +163,7 @@ function ReportFilter({
           type="text"
           name="q"
           defaultValue={q ?? ""}
-          placeholder="Nombre, código…"
+          placeholder="Nombre, SKU o código de barras…"
           className={inputCls}
         />
       </div>

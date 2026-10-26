@@ -6,9 +6,11 @@ import { useDeferredValue, useState, useEffect } from "react";
 export function SearchInput({
   placeholder = "Buscar…",
   param = "q",
+  autoFocus = false,
 }: {
   placeholder?: string;
   param?: string;
+  autoFocus?: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -43,7 +45,16 @@ export function SearchInput({
       <input
         type="search"
         value={value}
+        autoFocus={autoFocus}
         onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key !== "Enter") return;
+          e.preventDefault();
+          const params = new URLSearchParams(searchParams.toString());
+          if (value.trim()) params.set(param, value.trim());
+          else params.delete(param);
+          router.replace(`?${params.toString()}`);
+        }}
         placeholder={placeholder}
         className="w-full rounded-lg border border-line bg-white py-2 pl-9 pr-3 text-sm text-slate-900 placeholder:text-slate-400 transition-shadow focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
       />

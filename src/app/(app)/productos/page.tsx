@@ -17,6 +17,7 @@ import { formatCurrency, formatNumber } from "@/lib/format";
 import { ConfirmButton } from "@/components/ConfirmButton";
 import { toggleProductActive, deleteProduct } from "@/actions/productos";
 import { cn } from "@/lib/cn";
+import { effectiveBarcode } from "@/lib/codes";
 
 type Status = { label: string; color: "green" | "amber" | "red" | "blue" };
 
@@ -52,7 +53,7 @@ export default async function ProductosPage({
   const qLower = q?.toLowerCase();
   const products = allProducts.filter((p) => {
     if (qLower) {
-      const haystack = [p.name, p.sku, p.barcode ?? "", p.description ?? ""]
+      const haystack = [p.name, p.sku, p.barcode ?? "", effectiveBarcode(p), p.description ?? ""]
         .join(" ")
         .toLowerCase();
       if (!haystack.includes(qLower)) return false;
@@ -86,7 +87,10 @@ export default async function ProductosPage({
 
       <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-[1fr_220px]">
         <div className="space-y-3">
-          <SearchInput placeholder="Buscar por nombre, SKU o descripción…" />
+          <SearchInput
+            autoFocus
+            placeholder="Buscar por nombre, SKU, código de barras o descripción…"
+          />
           <div className="flex flex-wrap gap-1.5">
             {stateChips.map((c) => (
               <Chip key={c.key} href={c.href} active={c.active}>
