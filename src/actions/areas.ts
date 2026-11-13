@@ -49,3 +49,18 @@ export async function deleteArea(id: string) {
   revalidatePath("/areas");
   redirect("/areas");
 }
+
+// Se llama desde el formulario de salidas para agregar/editar el email
+// de un área sin abandonar la página. Devuelve el email guardado.
+export async function setAreaEmail(areaId: string, email: string) {
+  await requireRole(["ADMIN", "OPERADOR"]);
+  const normalized = email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized))
+    throw new Error("Email inválido");
+  const area = await db.area.findUnique({ where: { id: areaId } });
+  if (!area) throw new Error("Área inexistente");
+  await db.area.update({ where: { id: areaId }, data: { email: normalized } });
+  revalidatePath("/salidas");
+  revalidatePath("/areas");
+  return { ok: true as const, email: normalized };
+}
