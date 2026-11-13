@@ -5,6 +5,7 @@ import { registerIngreso, registerSalida, registerAjuste } from "@/actions/movim
 import type { Area, Supplier } from "@prisma/client";
 import { Button, Input, Label, Select } from "@/components/ui";
 import { SearchSelect } from "@/components/SearchSelect";
+import { AreaEmailStatus } from "@/components/AreaEmailStatus";
 import { useFormAction } from "@/lib/useFormAction";
 import { SALIDA_REASONS } from "@/lib/format";
 
@@ -31,6 +32,9 @@ export function StockMovementForms({
   areas: Area[];
 }) {
   const [open, setOpen] = useState<string | null>(null);
+  const [salidaAreaId, setSalidaAreaId] = useState("");
+
+  const salidaArea = areas.find((a) => a.id === salidaAreaId);
 
   const [ingresoState, ingresoAction, ingresoPending] =
     useFormAction(registerIngreso);
@@ -141,7 +145,11 @@ export function StockMovementForms({
                 value: a.id,
                 label: `${a.code} · ${a.name}`,
               }))}
+              onSelect={(opt) => setSalidaAreaId(opt.value)}
             />
+            {salidaAreaId && (
+              <AreaEmailStatus key={salidaAreaId} area={salidaArea} />
+            )}
           </div>
           <div>
             <Label>Retira / Entrega</Label>
